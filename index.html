@@ -2386,19 +2386,16 @@
             try {
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify({
                         action: 'syncFromLocal',
                         data: { goats, treatments, kiddingRecords, feedRecords }
                     })
                 });
-                const result = await response.json();
+                // With no-cors, we can't read the response, so assume success
                 isSyncing = false;
-                if (result.status === 'success') {
-                    updateSyncStatus('success', 'Synced successfully! ' + goats.length + ' goats');
-                } else {
-                    updateSyncStatus('error', 'Sync failed: ' + (result.message || 'Unknown error'));
-                }
+                updateSyncStatus('success', 'Sync sent! ' + goats.length + ' goats');
             } catch (e) {
                 isSyncing = false;
                 updateSyncStatus('error', 'Sync error: ' + e.message);
@@ -2411,25 +2408,40 @@
             updateSyncStatus('syncing', 'Loading from Google Sheets...');
             
             try {
-                const response = await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'getAllData' })
-                });
-                const result = await response.json();
-                isSyncing = false;
+                // Use GET request with callback for CORS-safe loading
+                const url = APPS_SCRIPT_URL + '?action=getAllData&callback=handleSheetData&t=' + Date.now();
                 
-                if (result.status === 'success' && result.data) {
-                    goats = result.data.goats || [];
-                    treatments = result.data.treatments || [];
-                    kiddingRecords = result.data.kiddingRecords || [];
-                    feedRecords = result.data.feedRecords || [];
-                    saveAllData();
-                    refreshAllDisplays();
-                    updateSyncStatus('success', 'Loaded ' + goats.length + ' goats from Sheets');
-                } else {
-                    updateSyncStatus('error', 'Load failed: ' + (result.message || 'No data'));
-                }
+                // Create script element for JSONP-style request
+                const script = document.createElement('script');
+                script.src = url;
+                
+                // Set up global callback
+                window.handleSheetData = function(result) {
+                    isSyncing = false;
+                    if (result && result.status === 'success' && result.data) {
+                        goats = result.data.goats || [];
+                        treatments = result.data.treatments || [];
+                        kiddingRecords = result.data.kiddingRecords || [];
+                        feedRecords = result.data.feedRecords || [];
+                        saveAllData();
+                        refreshAllDisplays();
+                        updateSyncStatus('success', 'Loaded ' + goats.length + ' goats from Sheets');
+                    } else {
+                        updateSyncStatus('error', 'Load failed: No data received');
+                    }
+                    // Clean up
+                    delete window.handleSheetData;
+                    script.remove();
+                };
+                
+                script.onerror = function() {
+                    isSyncing = false;
+                    updateSyncStatus('error', 'Load error: Could not connect');
+                    delete window.handleSheetData;
+                    script.remove();
+                };
+                
+                document.body.appendChild(script);
             } catch (e) {
                 isSyncing = false;
                 updateSyncStatus('error', 'Load error: ' + e.message);
