@@ -2428,8 +2428,43 @@
                 isSyncing = false;
                 
                 if (result.status === 'success' && result.data) {
-                    goats = result.data.goats || [];
-                    treatments = result.data.treatments || [];
+                    // Sanitize data - ensure all string fields are strings
+                    goats = (result.data.goats || []).map(g => ({
+                        ...g,
+                        id: g.id || Date.now(),
+                        name: String(g.name || ''),
+                        tag: String(g.tag || ''),
+                        status: String(g.status || 'Active'),
+                        gender: String(g.gender || 'Doe'),
+                        birthDate: String(g.birthDate || ''),
+                        sire: String(g.sire || ''),
+                        dam: String(g.dam || ''),
+                        color: String(g.color || ''),
+                        notes: String(g.notes || ''),
+                        salePrice: String(g.salePrice || ''),
+                        cullDate: String(g.cullDate || ''),
+                        cullReason: String(g.cullReason || ''),
+                        weanedDate: String(g.weanedDate || ''),
+                        kiddingEase: String(g.kiddingEase || ''),
+                        badFeet: Boolean(g.badFeet),
+                        poorUdder: Boolean(g.poorUdder),
+                        kidsPoorly: Boolean(g.kidsPoorly),
+                        digestive: Boolean(g.digestive),
+                        weights: Array.isArray(g.weights) ? g.weights : [],
+                        photo: g.photo || null
+                    }));
+                    treatments = (result.data.treatments || []).map(t => ({
+                        ...t,
+                        id: t.id || Date.now(),
+                        date: String(t.date || ''),
+                        tags: String(t.tags || ''),
+                        type: String(t.type || ''),
+                        medication: String(t.medication || ''),
+                        dosage: String(t.dosage || ''),
+                        route: String(t.route || ''),
+                        cost: t.cost || 0,
+                        notes: String(t.notes || '')
+                    }));
                     kiddingRecords = result.data.kiddingRecords || [];
                     feedRecords = result.data.feedRecords || [];
                     saveAllData();
