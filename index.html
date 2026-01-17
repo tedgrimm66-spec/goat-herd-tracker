@@ -2374,7 +2374,35 @@
         // DATA STORAGE - Must be declared first!
         // ═══════════════════════════════════════════════════════════════
         
-        let goats = JSON.parse(localStorage.getItem('goats')) || [];
+        // Helper to sanitize goat data
+        function sanitizeGoat(g) {
+            return {
+                ...g,
+                id: g.id || Date.now(),
+                name: String(g.name || ''),
+                tag: String(g.tag || ''),
+                status: String(g.status || 'Active'),
+                gender: String(g.gender || 'Doe'),
+                birthDate: String(g.birthDate || ''),
+                sire: String(g.sire || ''),
+                dam: String(g.dam || ''),
+                color: String(g.color || ''),
+                notes: String(g.notes || ''),
+                salePrice: String(g.salePrice || ''),
+                cullDate: String(g.cullDate || ''),
+                cullReason: String(g.cullReason || ''),
+                weanedDate: String(g.weanedDate || ''),
+                kiddingEase: String(g.kiddingEase || ''),
+                badFeet: Boolean(g.badFeet),
+                poorUdder: Boolean(g.poorUdder),
+                kidsPoorly: Boolean(g.kidsPoorly),
+                digestive: Boolean(g.digestive),
+                weights: Array.isArray(g.weights) ? g.weights : [],
+                photo: g.photo || null
+            };
+        }
+        
+        let goats = (JSON.parse(localStorage.getItem('goats')) || []).map(sanitizeGoat);
         let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
         let feedRecords = JSON.parse(localStorage.getItem('feedRecords')) || [];
         let kiddingRecords = JSON.parse(localStorage.getItem('kiddingRecords')) || [];
@@ -2428,31 +2456,8 @@
                 isSyncing = false;
                 
                 if (result.status === 'success' && result.data) {
-                    // Sanitize data - ensure all string fields are strings
-                    goats = (result.data.goats || []).map(g => ({
-                        ...g,
-                        id: g.id || Date.now(),
-                        name: String(g.name || ''),
-                        tag: String(g.tag || ''),
-                        status: String(g.status || 'Active'),
-                        gender: String(g.gender || 'Doe'),
-                        birthDate: String(g.birthDate || ''),
-                        sire: String(g.sire || ''),
-                        dam: String(g.dam || ''),
-                        color: String(g.color || ''),
-                        notes: String(g.notes || ''),
-                        salePrice: String(g.salePrice || ''),
-                        cullDate: String(g.cullDate || ''),
-                        cullReason: String(g.cullReason || ''),
-                        weanedDate: String(g.weanedDate || ''),
-                        kiddingEase: String(g.kiddingEase || ''),
-                        badFeet: Boolean(g.badFeet),
-                        poorUdder: Boolean(g.poorUdder),
-                        kidsPoorly: Boolean(g.kidsPoorly),
-                        digestive: Boolean(g.digestive),
-                        weights: Array.isArray(g.weights) ? g.weights : [],
-                        photo: g.photo || null
-                    }));
+                    // Sanitize data from sheets
+                    goats = (result.data.goats || []).map(sanitizeGoat);
                     treatments = (result.data.treatments || []).map(t => ({
                         ...t,
                         id: t.id || Date.now(),
