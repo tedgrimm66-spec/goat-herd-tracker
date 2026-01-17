@@ -2371,10 +2371,19 @@
 
     <script>
         // ═══════════════════════════════════════════════════════════════
+        // DATA STORAGE - Must be declared first!
+        // ═══════════════════════════════════════════════════════════════
+        
+        let goats = JSON.parse(localStorage.getItem('goats')) || [];
+        let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
+        let feedRecords = JSON.parse(localStorage.getItem('feedRecords')) || [];
+        let kiddingRecords = JSON.parse(localStorage.getItem('kiddingRecords')) || [];
+        
+        // ═══════════════════════════════════════════════════════════════
         // GOOGLE SHEETS INTEGRATION
         // ═══════════════════════════════════════════════════════════════
         
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRyv_RUKDAG6rAhz-pIq34Y4Mg8tVxM6wYnyPhwLaL4yHxHYfb8xWcxXWSWeaAwzuW/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyQiFJjoN_kTUkA0P9KmJbE7ACzMFBJI5RmrMHPzVyoplSb0jA_Q90AY34x5ZXZ9oHE/exec';
         let syncEnabled = true;
         let isSyncing = false;
         
@@ -2386,16 +2395,19 @@
             try {
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
+                    redirect: 'follow',
                     body: JSON.stringify({
                         action: 'syncFromLocal',
                         data: { goats, treatments, kiddingRecords, feedRecords }
                     })
                 });
-                // With no-cors, we can't read the response, so assume success
+                const result = await response.json();
                 isSyncing = false;
-                updateSyncStatus('success', 'Sync sent! ' + goats.length + ' goats');
+                if (result.status === 'success') {
+                    updateSyncStatus('success', 'Synced! ' + goats.length + ' goats saved to Sheets');
+                } else {
+                    updateSyncStatus('error', 'Sync failed: ' + (result.message || 'Unknown error'));
+                }
             } catch (e) {
                 isSyncing = false;
                 updateSyncStatus('error', 'Sync error: ' + e.message);
@@ -2408,40 +2420,24 @@
             updateSyncStatus('syncing', 'Loading from Google Sheets...');
             
             try {
-                // Use GET request with callback for CORS-safe loading
-                const url = APPS_SCRIPT_URL + '?action=getAllData&callback=handleSheetData&t=' + Date.now();
+                const response = await fetch(APPS_SCRIPT_URL + '?action=getAllData', {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                const result = await response.json();
+                isSyncing = false;
                 
-                // Create script element for JSONP-style request
-                const script = document.createElement('script');
-                script.src = url;
-                
-                // Set up global callback
-                window.handleSheetData = function(result) {
-                    isSyncing = false;
-                    if (result && result.status === 'success' && result.data) {
-                        goats = result.data.goats || [];
-                        treatments = result.data.treatments || [];
-                        kiddingRecords = result.data.kiddingRecords || [];
-                        feedRecords = result.data.feedRecords || [];
-                        saveAllData();
-                        refreshAllDisplays();
-                        updateSyncStatus('success', 'Loaded ' + goats.length + ' goats from Sheets');
-                    } else {
-                        updateSyncStatus('error', 'Load failed: No data received');
-                    }
-                    // Clean up
-                    delete window.handleSheetData;
-                    script.remove();
-                };
-                
-                script.onerror = function() {
-                    isSyncing = false;
-                    updateSyncStatus('error', 'Load error: Could not connect');
-                    delete window.handleSheetData;
-                    script.remove();
-                };
-                
-                document.body.appendChild(script);
+                if (result.status === 'success' && result.data) {
+                    goats = result.data.goats || [];
+                    treatments = result.data.treatments || [];
+                    kiddingRecords = result.data.kiddingRecords || [];
+                    feedRecords = result.data.feedRecords || [];
+                    saveAllData();
+                    refreshAllDisplays();
+                    updateSyncStatus('success', 'Loaded ' + goats.length + ' goats from Sheets');
+                } else {
+                    updateSyncStatus('error', 'Load failed: ' + (result.message || 'No data'));
+                }
             } catch (e) {
                 isSyncing = false;
                 updateSyncStatus('error', 'Load error: ' + e.message);
@@ -2487,10 +2483,6 @@
         // ORIGINAL APP CODE
         // ═══════════════════════════════════════════════════════════════
         
-        let goats = JSON.parse(localStorage.getItem('goats')) || [];
-        let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
-        let feedRecords = JSON.parse(localStorage.getItem('feedRecords')) || [];
-        let kiddingRecords = JSON.parse(localStorage.getItem('kiddingRecords')) || [];
         let currentViewGoatId = null;
         
         document.addEventListener('DOMContentLoaded', function() {
