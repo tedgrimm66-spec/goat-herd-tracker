@@ -83,6 +83,25 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--field-green);
+
+        <!-- Google Sheets Sync Controls -->
+        <div class="sync-controls" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;">
+            <div id="syncStatus" class="sync-status success" style="margin-bottom: 10px; font-weight: 500;">
+                🟢 Ready to sync with Google Sheets
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="syncAllToSheets()" class="btn btn-primary" style="min-width: 150px;">
+                    🔄 Sync to Sheets
+                </button>
+                <button onclick="loadAllFromSheets()" class="btn btn-secondary" style="min-width: 150px;">
+                    ⬇️ Load from Sheets
+                </button>
+                <button id="toggleSyncBtn" onclick="toggleSync()" class="btn" style="min-width: 150px;">
+                    🔄 Auto-Sync: ON
+                </button>
+            </div>
+        </div>
+
             margin-bottom: 10px;
             font-weight: 600;
         }
@@ -1273,6 +1292,43 @@
                 padding: 15px 10px;
             }
             
+        
+        /* Google Sheets Sync Styles */
+        .sync-controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .sync-status {
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        .sync-status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .sync-status.syncing {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .sync-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .sync-status.offline {
+            background: #e2e3e5;
+            color: #383d41;
+        }
             .tree-view-container h4 {
                 font-size: 0.8rem;
                 padding: 8px 10px;
@@ -2327,7 +2383,229 @@
         </div>
     </div>
 
+
     <script>
+        // ═══════════════════════════════════════════════════════════════
+        // GOOGLE SHEETS INTEGRATION - CONFIGURATION
+        // ═══════════════════════════════════════════════════════════════
+        
+        // Your Apps Script Web App URL (hardcoded)
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRyv_RUKDAG6rAhz-pIq34Y4Mg8tVxM6wYnyPhwLaL4yHxHYfb8xWcxXWSWeaAwzuW/exec';
+        
+        // Sync settings
+        const USE_GOOGLE_SHEETS = true;          // true = use Sheets, false = localStorage only
+        const AUTO_SYNC_ON_CHANGE = true;        // Auto-sync when data changes
+        const SYNC_INTERVAL_MINUTES = 5;         // Background sync every X minutes
+        const SHOW_SYNC_NOTIFICATIONS = true;    // Show sync status messages
+        
+        // Sync state
+        let isSyncing = false;
+        let lastSyncTime = null;
+        let syncEnabled = USE_GOOGLE_SHEETS;
+        
+        // ═══════════════════════════════════════════════════════════════
+        // GOOGLE SHEETS API FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+        
+        async function callAppsScript(action, data = null) {
+            if (!syncEnabled) {
+                console.log('Sync disabled, using localStorage only');
+                return null;
+            }
+            
+            try {
+                const payload = { action };
+                if (data) payload.data = data;
+                
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'error') {
+                    throw new Error(result.message);
+                }
+                
+                return result.data;
+            } catch (error) {
+                console.error('Apps Script error:', error);
+                updateSyncStatus('error', error.message);
+                return null;
+            }
+        }
+        
+        async function syncAllToSheets() {
+            if (!syncEnabled || isSyncing) return;
+            
+            isSyncing = true;
+            updateSyncStatus('syncing', 'Syncing to Google Sheets...');
+            
+            try {
+                const localData = {
+                    goats: goats,
+                    treatments: treatments,
+                    kiddingRecords: kiddingRecords,
+                    feedRecords: feedRecords
+                };
+                
+                const result = await callAppsScript('syncFromLocal', localData);
+                
+                if (result) {
+                    lastSyncTime = new Date();
+                    updateSyncStatus('success', `Synced successfully! ${goats.length} goats`);
+                } else {
+                    updateSyncStatus('error', 'Sync failed');
+                }
+            } catch (error) {
+                console.error('Sync error:', error);
+                updateSyncStatus('error', error.message);
+            } finally {
+                isSyncing = false;
+            }
+        }
+        
+        async function loadAllFromSheets() {
+            if (!syncEnabled || isSyncing) return;
+            
+            isSyncing = true;
+            updateSyncStatus('syncing', 'Loading from Google Sheets...');
+            
+            try {
+                const data = await callAppsScript('getAllData');
+                
+                if (data) {
+                    goats = data.goats || [];
+                    treatments = data.treatments || [];
+                    kiddingRecords = data.kiddingRecords || [];
+                    feedRecords = data.feedRecords || [];
+                    
+                    // Also save to localStorage as backup
+                    localStorage.setItem('goats', JSON.stringify(goats));
+                    localStorage.setItem('treatments', JSON.stringify(treatments));
+                    localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
+                    localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+                    
+                    // Refresh all displays
+                    displayGoats();
+                    displayTreatments();
+                    displayFeedRecords();
+                    displayKiddingRecords();
+                    renderFamilyTree();
+                    updateStats();
+                    updateReports();
+                    updateKiddingStats();
+                    
+                    lastSyncTime = new Date();
+                    updateSyncStatus('success', `Loaded ${goats.length} goats from Google Sheets`);
+                } else {
+                    updateSyncStatus('error', 'Load failed');
+                }
+            } catch (error) {
+                console.error('Load error:', error);
+                updateSyncStatus('error', error.message);
+            } finally {
+                isSyncing = false;
+            }
+        }
+        
+        async function syncGoatToSheets(goat, isUpdate = false) {
+            if (!syncEnabled || !AUTO_SYNC_ON_CHANGE) return;
+            
+            try {
+                const action = isUpdate ? 'updateGoat' : 'addGoat';
+                await callAppsScript(action, goat);
+                updateSyncStatus('success', 'Goat synced');
+            } catch (error) {
+                console.error('Goat sync error:', error);
+            }
+        }
+        
+        async function syncTreatmentToSheets(treatment, isUpdate = false) {
+            if (!syncEnabled || !AUTO_SYNC_ON_CHANGE) return;
+            
+            try {
+                const action = isUpdate ? 'updateTreatment' : 'addTreatment';
+                await callAppsScript(action, treatment);
+                updateSyncStatus('success', 'Treatment synced');
+            } catch (error) {
+                console.error('Treatment sync error:', error);
+            }
+        }
+        
+        async function syncKiddingToSheets(kidding) {
+            if (!syncEnabled || !AUTO_SYNC_ON_CHANGE) return;
+            
+            try {
+                await callAppsScript('addKiddingRecord', kidding);
+                updateSyncStatus('success', 'Kidding record synced');
+            } catch (error) {
+                console.error('Kidding sync error:', error);
+            }
+        }
+        
+        async function syncFeedToSheets(feed) {
+            if (!syncEnabled || !AUTO_SYNC_ON_CHANGE) return;
+            
+            try {
+                await callAppsScript('addFeedRecord', feed);
+                updateSyncStatus('success', 'Feed record synced');
+            } catch (error) {
+                console.error('Feed sync error:', error);
+            }
+        }
+        
+        function updateSyncStatus(status, message) {
+            const statusEl = document.getElementById('syncStatus');
+            if (!statusEl) return;
+            
+            const icons = {
+                success: '🟢',
+                syncing: '🟡',
+                error: '🔴',
+                offline: '⚫'
+            };
+            
+            statusEl.textContent = `${icons[status] || ''} ${message}`;
+            statusEl.className = `sync-status ${status}`;
+            
+            if (SHOW_SYNC_NOTIFICATIONS && status === 'success') {
+                setTimeout(() => {
+                    if (lastSyncTime) {
+                        const elapsed = Math.floor((new Date() - lastSyncTime) / 1000);
+                        statusEl.textContent = `🟢 Synced (${elapsed}s ago)`;
+                    }
+                }, 2000);
+            }
+        }
+        
+        function toggleSync() {
+            syncEnabled = !syncEnabled;
+            const btn = document.getElementById('toggleSyncBtn');
+            if (btn) {
+                btn.textContent = syncEnabled ? '🔄 Auto-Sync: ON' : '⚫ Auto-Sync: OFF';
+            }
+            updateSyncStatus(syncEnabled ? 'success' : 'offline', 
+                           syncEnabled ? 'Sync enabled' : 'Offline mode');
+        }
+        
+        // Background sync every X minutes
+        if (USE_GOOGLE_SHEETS && SYNC_INTERVAL_MINUTES > 0) {
+            setInterval(() => {
+                if (syncEnabled && !isSyncing) {
+                    loadAllFromSheets();
+                }
+            }, SYNC_INTERVAL_MINUTES * 60 * 1000);
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // ORIGINAL TRACKER CODE
+        // ═══════════════════════════════════════════════════════════════
+        
         let goats = JSON.parse(localStorage.getItem('goats')) || [];
         let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
         let feedRecords = JSON.parse(localStorage.getItem('feedRecords')) || [];
@@ -2414,7 +2692,13 @@
                 };
                 
                 goats.push(goat);
+                
+                goats.push(goat);
                 localStorage.setItem('goats', JSON.stringify(goats));
+                
+                // Sync to Google Sheets
+                syncGoatToSheets(goat, false);
+                
                 
                 displayGoats();
                 updateStats();
@@ -2960,6 +3244,9 @@
             
             treatments.push(treatment);
             localStorage.setItem('treatments', JSON.stringify(treatments));
+                
+                // Sync to Google Sheets
+                syncTreatmentToSheets(treatment, false);
             displayTreatments();
             updateReports();
             closeModal('addTreatmentModal');
