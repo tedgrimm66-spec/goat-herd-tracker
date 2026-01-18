@@ -2378,7 +2378,7 @@
         function sanitizeGoat(g) {
             return {
                 ...g,
-                id: g.id || Date.now(),
+                id: String(g.id || Date.now()),
                 name: String(g.name || ''),
                 tag: String(g.tag || ''),
                 status: String(g.status || 'Active'),
@@ -2581,7 +2581,7 @@
                 const photoData = await getPhotoData('addPhotoInput');
                 
                 const goat = {
-                    id: Date.now(),
+                    id: String(Date.now()),
                     photo: photoData,
                     name: document.getElementById('name').value.trim() || tag,
                     tag: tag,
@@ -2999,7 +2999,7 @@
             if (goat) {
                 if (!goat.weights) goat.weights = [];
                 goat.weights.push({
-                    id: Date.now(),
+                    id: String(Date.now()),
                     date: document.getElementById('weightDate').value,
                     weight: document.getElementById('weightValue').value,
                     bodyCondition: document.getElementById('bodyCondition').value,
@@ -3138,7 +3138,7 @@
             }
             
             const treatment = {
-                id: Date.now(),
+                id: String(Date.now()),
                 date: document.getElementById('treatmentDate').value,
                 tags: tags,
                 type: document.getElementById('treatmentType').value,
@@ -3274,7 +3274,7 @@
             e.preventDefault();
             
             const feed = {
-                id: Date.now(),
+                id: String(Date.now()),
                 date: document.getElementById('feedDate').value,
                 type: document.getElementById('feedType').value,
                 quantity: document.getElementById('feedQuantity').value,
@@ -3616,9 +3616,10 @@
                 const div = document.createElement('div');
                 div.style.cssText = 'padding: 12px; margin-bottom: 8px; background: white; border-radius: 6px; border: 2px solid var(--light-tan); display: flex; align-items: center; gap: 12px;';
                 
+                const goatId = String(g.id);
                 div.innerHTML = `
-                    <input type="checkbox" id="bulk-${g.id}" value="${g.id}" onchange="updateBulkSaleCalculation()" style="width: 20px; height: 20px; cursor: pointer;">
-                    <label for="bulk-${g.id}" style="margin: 0; cursor: pointer; flex: 1; font-size: 1rem;">
+                    <input type="checkbox" id="bulk-${goatId}" value="${goatId}" onchange="updateBulkSaleCalculation()" style="width: 20px; height: 20px; cursor: pointer;">
+                    <label for="bulk-${goatId}" style="margin: 0; cursor: pointer; flex: 1; font-size: 1rem;">
                         <strong>${g.name || g.tag}</strong> (${g.tag}) - ${g.gender} - ${g.birthDate ? new Date(g.birthDate).toLocaleDateString() : 'N/A'}
                     </label>
                 `;
@@ -3993,7 +3994,7 @@
             const autoAdd = document.getElementById('kiddingAutoAdd').checked;
             
             const kidding = {
-                id: Date.now(),
+                id: String(Date.now()),
                 date: kiddingDate,
                 doe: doe,
                 sire: sire,
@@ -4049,7 +4050,7 @@
                     kidIndex++;
                     
                     const kid = {
-                        id: Date.now() + i,
+                        id: String(Date.now()) + i,
                         photo: null,
                         name: tag,
                         tag: tag,
@@ -4070,7 +4071,7 @@
                         cullDate: '',
                         cullReason: '',
                         weights: birthWeight ? [{
-                            id: Date.now() + i,
+                            id: String(Date.now()) + i,
                             date: kiddingDate,
                             weight: parseFloat(birthWeight),
                             bodyCondition: '',
@@ -4089,7 +4090,7 @@
                     kidIndex++;
                     
                     const kid = {
-                        id: Date.now() + numBucks + i,
+                        id: String(Date.now()) + numBucks + i,
                         photo: null,
                         name: tag,
                         tag: tag,
@@ -4110,7 +4111,7 @@
                         cullDate: '',
                         cullReason: '',
                         weights: birthWeight ? [{
-                            id: Date.now() + numBucks + i,
+                            id: String(Date.now()) + numBucks + i,
                             date: kiddingDate,
                             weight: parseFloat(birthWeight),
                             bodyCondition: '',
