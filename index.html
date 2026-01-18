@@ -2673,9 +2673,9 @@
                     <td>${problems.join(', ') || 'None'}</td>
                     <td>
                         <div class="action-btns">
-                            <button class="btn btn-primary btn-small" onclick="viewGoatDetails(${g.id})">View</button>
-                            <button class="btn btn-secondary btn-small" onclick="editGoat(${g.id})">Edit</button>
-                            <button class="btn btn-danger btn-small" onclick="deleteGoat(${g.id})">Delete</button>
+                            <button class="btn btn-primary btn-small" onclick="viewGoatDetails('${g.id}')">View</button>
+                            <button class="btn btn-secondary btn-small" onclick="editGoat('${g.id}')">Edit</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteGoat('${g.id}')">Delete</button>
                         </div>
                     </td>
                 `;
@@ -3650,6 +3650,8 @@
             const checkboxes = document.querySelectorAll('#bulkSaleGoatList input[type="checkbox"]:checked');
             const selectedIds = Array.from(checkboxes).map(cb => String(cb.value));
             
+            console.log('Selected IDs for bulk sale:', selectedIds);
+            
             if (selectedIds.length === 0) {
                 alert('Please select at least one goat to sell');
                 return false;
@@ -3665,16 +3667,22 @@
             }
             
             // Update each selected goat
+            let updatedCount = 0;
             selectedIds.forEach(id => {
                 const goat = goats.find(g => String(g.id) === id);
+                console.log('Looking for goat with id:', id, 'Found:', goat ? goat.name : 'NOT FOUND');
                 if (goat) {
                     goat.status = 'Sold';
                     goat.salePrice = pricePerGoat.toFixed(2);
+                    goat.saleDate = saleDate;
                     if (notes) {
                         goat.notes = goat.notes ? goat.notes + '\n\nSale: ' + notes : 'Sale: ' + notes;
                     }
+                    updatedCount++;
                 }
             });
+            
+            console.log('Updated', updatedCount, 'goats');
             
             localStorage.setItem('goats', JSON.stringify(goats));
             
@@ -3684,7 +3692,12 @@
             renderFamilyTree();
             closeModal('bulkSaleModal');
             
-            alert(`Successfully sold ${selectedIds.length} goats for $${total.toFixed(2)}!`);
+            // Sync to sheets if enabled
+            if (syncEnabled) {
+                syncAllToSheets();
+            }
+            
+            alert(`Successfully sold ${updatedCount} goats for $${total.toFixed(2)}!`);
             
             return false;
         }
@@ -4334,7 +4347,7 @@
             const genderClass = goat.gender.toLowerCase();
             const genderIcon = goat.gender === 'Doe' ? '♀' : goat.gender === 'Buck' ? '♂' : '⚥';
             
-            let html = `<div class="tree-node" data-gender="${goat.gender}" onclick="viewGoatDetails(${goat.id})">`;
+            let html = `<div class="tree-node" data-gender="${goat.gender}" onclick="viewGoatDetails('${goat.id}')">`;
             if (goat.photo) {
                 html += `<img src="${goat.photo}" class="goat-photo-small" style="float: left; margin-right: 15px;">`;
             }
