@@ -2841,8 +2841,11 @@
         }
         
         function viewGoatDetails(id) {
-            const goat = goats.find(g => g.id === id);
-            if (!goat) return;
+            const goat = goats.find(g => String(g.id) === String(id));
+            if (!goat) {
+                console.log('Goat not found for id:', id);
+                return;
+            }
             
             currentViewGoatId = id;
             document.getElementById('viewGoatTitle').textContent = goat.name;
@@ -2990,8 +2993,8 @@
         
         function addWeight(e) {
             e.preventDefault();
-            const goatId = parseInt(document.getElementById('weightGoatId').value);
-            const goat = goats.find(g => g.id === goatId);
+            const goatId = document.getElementById('weightGoatId').value;
+            const goat = goats.find(g => String(g.id) === String(goatId));
             
             if (goat) {
                 if (!goat.weights) goat.weights = [];
@@ -3013,9 +3016,9 @@
         function deleteWeight(goatId, weightId) {
             if (!confirm('Delete this weight record?')) return;
             
-            const goat = goats.find(g => g.id === goatId);
+            const goat = goats.find(g => String(g.id) === String(goatId));
             if (goat && goat.weights) {
-                goat.weights = goat.weights.filter(w => w.id !== weightId);
+                goat.weights = goat.weights.filter(w => String(w.id) !== String(weightId));
                 localStorage.setItem('goats', JSON.stringify(goats));
                 viewGoatDetails(goatId);
             }
@@ -3029,7 +3032,7 @@
         }
         
         function editGoat(id) {
-            const goat = goats.find(g => g.id === id);
+            const goat = goats.find(g => String(g.id) === String(id));
             if (!goat) return;
             
             document.getElementById('editId').value = goat.id;
@@ -3064,8 +3067,8 @@
         
         async function updateGoat(e) {
             e.preventDefault();
-            const id = parseInt(document.getElementById('editId').value);
-            const goat = goats.find(g => g.id === id);
+            const id = document.getElementById('editId').value;
+            const goat = goats.find(g => String(g.id) === String(id));
             
             if (goat) {
                 // Update photo if a new one was uploaded
@@ -3105,7 +3108,7 @@
         function deleteGoat(id) {
             if (!confirm('Delete this goat? This cannot be undone.')) return;
             
-            goats = goats.filter(g => g.id !== id);
+            goats = goats.filter(g => String(g.id) !== String(id));
             localStorage.setItem('goats', JSON.stringify(goats));
             displayGoats();
             updateStats();
@@ -3645,7 +3648,7 @@
             e.preventDefault();
             
             const checkboxes = document.querySelectorAll('#bulkSaleGoatList input[type="checkbox"]:checked');
-            const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const selectedIds = Array.from(checkboxes).map(cb => String(cb.value));
             
             if (selectedIds.length === 0) {
                 alert('Please select at least one goat to sell');
@@ -3663,7 +3666,7 @@
             
             // Update each selected goat
             selectedIds.forEach(id => {
-                const goat = goats.find(g => g.id === id);
+                const goat = goats.find(g => String(g.id) === id);
                 if (goat) {
                     goat.status = 'Sold';
                     goat.salePrice = pricePerGoat.toFixed(2);
