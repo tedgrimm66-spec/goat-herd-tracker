@@ -93,29 +93,63 @@
             color: var(--barn-red);
         }
         
-        /* Google Sheets Sync Styles */
-        .sync-controls {
+        /* Google Sheets Sync Styles - Compact top bar */
+        .sync-bar {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             background: white;
-            padding: 15px 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-            text-align: center;
+            padding: 6px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            font-size: 0.8rem;
+        }
+        
+        .sync-version {
+            font-size: 0.65rem;
+            color: #888;
+            font-weight: 600;
+            padding: 2px 6px;
+            background: #f0f0f0;
+            border-radius: 8px;
+        }
+        
+        .sync-time {
+            font-size: 0.65rem;
+            color: #666;
         }
         
         .sync-status {
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
             font-weight: 600;
-            display: inline-block;
-            margin-bottom: 12px;
-            font-size: 0.95rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
         }
         
         .sync-status.success { background: #d4edda; color: #155724; }
         .sync-status.syncing { background: #fff3cd; color: #856404; }
         .sync-status.error { background: #f8d7da; color: #721c24; }
         .sync-status.offline { background: #e2e3e5; color: #383d41; }
+        
+        .sync-bar button {
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: var(--light-tan);
+            color: var(--barn-red);
+        }
+        
+        .sync-bar button:hover {
+            background: var(--barn-red);
+            color: white;
+        }
         
         .tabs {
             display: flex;
@@ -1315,22 +1349,14 @@
             <p class="subtitle">Goat Herd Tracker</p>
         </header>
         
-        <!-- Google Sheets Sync Controls -->
-        <div class="sync-controls">
-            <div id="syncStatus" class="sync-status success">
-                🟢 Ready to sync with Google Sheets
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="syncAllToSheets()" class="btn btn-primary" style="min-width: 150px;">
-                    🔄 Sync to Sheets
-                </button>
-                <button onclick="loadAllFromSheets()" class="btn btn-secondary" style="min-width: 150px;">
-                    ⬇️ Load from Sheets
-                </button>
-                <button id="toggleSyncBtn" onclick="toggleSync()" class="btn" style="min-width: 150px; background: var(--wheat-gold); color: white;">
-                    🔄 Auto-Sync: ON
-                </button>
-            </div>
+        <!-- Google Sheets Sync Bar - Compact top right -->
+        <div class="sync-bar">
+            <span class="sync-version">v1.0</span>
+            <div id="syncStatus" class="sync-status success">🟢 Synced</div>
+            <span id="lastSyncTime" class="sync-time"></span>
+            <button onclick="syncAllToSheets()" title="Sync to Sheets">⬆️</button>
+            <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
+            <button id="toggleSyncBtn" onclick="toggleSync()" title="Toggle Auto-Sync">🔄</button>
         </div>
         
         <div class="stats">
@@ -2377,7 +2403,6 @@
         // Helper to sanitize goat data
         function sanitizeGoat(g) {
             return {
-                ...g,
                 id: String(g.id || Date.now()),
                 name: String(g.name || ''),
                 tag: String(g.tag || ''),
@@ -2389,6 +2414,7 @@
                 color: String(g.color || ''),
                 notes: String(g.notes || ''),
                 salePrice: String(g.salePrice || ''),
+                saleDate: String(g.saleDate || ''),
                 cullDate: String(g.cullDate || ''),
                 cullReason: String(g.cullReason || ''),
                 weanedDate: String(g.weanedDate || ''),
@@ -2412,13 +2438,21 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyQiFJjoN_kTUkA0P9KmJbE7ACzMFBJI5RmrMHPzVyoplSb0jA_Q90AY34x5ZXZ9oHE/exec';
+        const APP_VERSION = 'v1.0';
         let syncEnabled = true;
         let isSyncing = false;
+        
+        function updateLastSyncTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('lastSyncTime').textContent = timeStr;
+            document.getElementById('lastSyncTime').title = 'Last sync: ' + now.toLocaleString();
+        }
         
         async function syncAllToSheets() {
             if (!syncEnabled || isSyncing) return;
             isSyncing = true;
-            updateSyncStatus('syncing', 'Syncing to Google Sheets...');
+            updateSyncStatus('syncing', 'Syncing...');
             
             try {
                 const response = await fetch(APPS_SCRIPT_URL, {
@@ -2432,13 +2466,14 @@
                 const result = await response.json();
                 isSyncing = false;
                 if (result.status === 'success') {
-                    updateSyncStatus('success', 'Synced! ' + goats.length + ' goats saved to Sheets');
+                    updateSyncStatus('success', 'Synced');
+                    updateLastSyncTime();
                 } else {
-                    updateSyncStatus('error', 'Sync failed: ' + (result.message || 'Unknown error'));
+                    updateSyncStatus('error', 'Failed');
                 }
             } catch (e) {
                 isSyncing = false;
-                updateSyncStatus('error', 'Sync error: ' + e.message);
+                updateSyncStatus('error', 'Error');
             }
         }
         
@@ -2474,37 +2509,79 @@
                     feedRecords = result.data.feedRecords || [];
                     saveAllData();
                     refreshAllDisplays();
-                    updateSyncStatus('success', 'Loaded ' + goats.length + ' goats from Sheets');
+                    updateSyncStatus('success', 'Loaded');
+                    updateLastSyncTime();
                 } else {
-                    updateSyncStatus('error', 'Load failed: ' + (result.message || 'No data'));
+                    updateSyncStatus('error', 'Failed');
                 }
             } catch (e) {
                 isSyncing = false;
-                updateSyncStatus('error', 'Load error: ' + e.message);
+                updateSyncStatus('error', 'Error');
             }
         }
         
         function toggleSync() {
             syncEnabled = !syncEnabled;
             const btn = document.getElementById('toggleSyncBtn');
-            btn.textContent = syncEnabled ? '🔄 Auto-Sync: ON' : '⚫ Auto-Sync: OFF';
-            btn.style.background = syncEnabled ? 'var(--wheat-gold)' : '#888';
-            updateSyncStatus(syncEnabled ? 'success' : 'offline', syncEnabled ? 'Sync enabled' : 'Offline mode - data saved locally only');
+            btn.textContent = syncEnabled ? '🔄' : '⚫';
+            btn.title = syncEnabled ? 'Auto-Sync ON (click to disable)' : 'Auto-Sync OFF (click to enable)';
+            btn.style.background = syncEnabled ? 'var(--light-tan)' : '#ccc';
+            updateSyncStatus(syncEnabled ? 'success' : 'offline', syncEnabled ? 'Synced' : 'Offline');
         }
         
         function updateSyncStatus(type, message) {
             const el = document.getElementById('syncStatus');
             const icons = { success: '🟢', syncing: '🟡', error: '🔴', offline: '⚫' };
             el.className = 'sync-status ' + type;
-            el.textContent = (icons[type] || '') + ' ' + message;
+            // Keep messages short for compact display
+            const shortMessage = message.length > 20 ? message.substring(0, 20) + '...' : message;
+            el.textContent = (icons[type] || '') + ' ' + shortMessage;
+            el.title = message; // Full message on hover
         }
         
-        // Helper to save all data to localStorage
+        // Helper to save all data to localStorage AND sync to sheets
         function saveAllData() {
             localStorage.setItem('goats', JSON.stringify(goats));
             localStorage.setItem('treatments', JSON.stringify(treatments));
             localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
             localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+            
+            // Auto-sync to Google Sheets
+            if (syncEnabled && !isSyncing) {
+                syncAllToSheets();
+            }
+        }
+        
+        // Helper function to save just goats and sync
+        function saveGoatsAndSync() {
+            localStorage.setItem('goats', JSON.stringify(goats));
+            if (syncEnabled && !isSyncing) {
+                syncAllToSheets();
+            }
+        }
+        
+        // Helper function to save just treatments and sync
+        function saveTreatmentsAndSync() {
+            localStorage.setItem('treatments', JSON.stringify(treatments));
+            if (syncEnabled && !isSyncing) {
+                syncAllToSheets();
+            }
+        }
+        
+        // Helper function to save just feed records and sync
+        function saveFeedAndSync() {
+            localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+            if (syncEnabled && !isSyncing) {
+                syncAllToSheets();
+            }
+        }
+        
+        // Helper function to save just kidding records and sync
+        function saveKiddingAndSync() {
+            localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
+            if (syncEnabled && !isSyncing) {
+                syncAllToSheets();
+            }
         }
         
         // Helper to refresh all displays
@@ -2525,7 +2602,44 @@
         
         let currentViewGoatId = null;
         
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Try to load from Google Sheets first
+            if (syncEnabled) {
+                updateSyncStatus('syncing', 'Loading...');
+                try {
+                    const response = await fetch(APPS_SCRIPT_URL + '?action=getAllData', {
+                        method: 'GET',
+                        redirect: 'follow'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.status === 'success' && result.data) {
+                        // Only use sheet data if it has goats
+                        if (result.data.goats && result.data.goats.length > 0) {
+                            goats = result.data.goats.map(sanitizeGoat);
+                            treatments = result.data.treatments || [];
+                            kiddingRecords = result.data.kiddingRecords || [];
+                            feedRecords = result.data.feedRecords || [];
+                            // Don't call saveAllData here to avoid re-syncing on load
+                            localStorage.setItem('goats', JSON.stringify(goats));
+                            localStorage.setItem('treatments', JSON.stringify(treatments));
+                            localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
+                            localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+                            updateSyncStatus('success', 'Loaded');
+                            updateLastSyncTime();
+                        } else {
+                            updateSyncStatus('success', 'Connected');
+                        }
+                    } else {
+                        updateSyncStatus('offline', 'Local');
+                    }
+                } catch (e) {
+                    console.log('Auto-load from Sheets failed:', e);
+                    updateSyncStatus('offline', 'Offline');
+                }
+            }
+            
+            // Display everything
             displayGoats();
             displayTreatments();
             displayFeedRecords();
@@ -2605,7 +2719,7 @@
                 };
                 
                 goats.push(goat);
-                localStorage.setItem('goats', JSON.stringify(goats));
+                saveGoatsAndSync();
                 
                 displayGoats();
                 updateStats();
@@ -2690,6 +2804,16 @@
         let currentSortColumn = null;
         let currentSortDirection = 'asc';
         
+        // Helper to get sort value - numeric if possible, otherwise lowercase string
+        function getSortValue(val) {
+            if (val === null || val === undefined || val === '') return { num: null, str: '' };
+            const num = parseFloat(val);
+            if (!isNaN(num) && String(num) === String(val).trim()) {
+                return { num: num, str: String(val).toLowerCase() };
+            }
+            return { num: null, str: String(val).toLowerCase() };
+        }
+        
         function applySortToArray(array) {
             if (!currentSortColumn) return array;
             
@@ -2698,12 +2822,27 @@
                 
                 switch(currentSortColumn) {
                     case 'name':
-                        aVal = (a.name || a.tag || '').toLowerCase();
-                        bVal = (b.name || b.tag || '').toLowerCase();
+                        // Sort by name, handling numeric names
+                        const aName = getSortValue(a.name || a.tag);
+                        const bName = getSortValue(b.name || b.tag);
+                        // If both are numeric, sort numerically
+                        if (aName.num !== null && bName.num !== null) {
+                            const diff = aName.num - bName.num;
+                            return currentSortDirection === 'asc' ? diff : -diff;
+                        }
+                        aVal = aName.str;
+                        bVal = bName.str;
                         break;
                     case 'tag':
-                        aVal = (a.tag || '').toLowerCase();
-                        bVal = (b.tag || '').toLowerCase();
+                        // Sort tags numerically if possible
+                        const aTag = getSortValue(a.tag);
+                        const bTag = getSortValue(b.tag);
+                        if (aTag.num !== null && bTag.num !== null) {
+                            const diff = aTag.num - bTag.num;
+                            return currentSortDirection === 'asc' ? diff : -diff;
+                        }
+                        aVal = aTag.str;
+                        bVal = bTag.str;
                         break;
                     case 'status':
                         aVal = (a.status || '').toLowerCase();
@@ -2716,18 +2855,13 @@
                     case 'birthDate':
                         aVal = a.birthDate ? new Date(a.birthDate) : new Date(0);
                         bVal = b.birthDate ? new Date(b.birthDate) : new Date(0);
-                        break;
+                        return currentSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
                     case 'color':
                         aVal = (a.color || '').toLowerCase();
                         bVal = (b.color || '').toLowerCase();
                         break;
                     default:
                         return 0;
-                }
-                
-                // Handle date comparison
-                if (currentSortColumn === 'birthDate') {
-                    return currentSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
                 }
                 
                 // Handle string comparison
@@ -3006,7 +3140,7 @@
                     notes: document.getElementById('weightNotes').value
                 });
                 
-                localStorage.setItem('goats', JSON.stringify(goats));
+                saveGoatsAndSync();
                 closeModal('addWeightModal');
                 e.target.reset();
                 viewGoatDetails(goatId);
@@ -3019,7 +3153,7 @@
             const goat = goats.find(g => String(g.id) === String(goatId));
             if (goat && goat.weights) {
                 goat.weights = goat.weights.filter(w => String(w.id) !== String(weightId));
-                localStorage.setItem('goats', JSON.stringify(goats));
+                saveGoatsAndSync();
                 viewGoatDetails(goatId);
             }
         }
@@ -3096,7 +3230,7 @@
                 goat.digestive = document.getElementById('editDigestive').checked;
                 goat.notes = document.getElementById('editNotes').value;
                 
-                localStorage.setItem('goats', JSON.stringify(goats));
+                saveGoatsAndSync();
                 displayGoats();
                 updateStats();
                 updateReports();
@@ -3109,7 +3243,7 @@
             if (!confirm('Delete this goat? This cannot be undone.')) return;
             
             goats = goats.filter(g => String(g.id) !== String(id));
-            localStorage.setItem('goats', JSON.stringify(goats));
+            saveGoatsAndSync();
             displayGoats();
             updateStats();
             updateReports();
@@ -3153,7 +3287,7 @@
             };
             
             treatments.push(treatment);
-            localStorage.setItem('treatments', JSON.stringify(treatments));
+            saveTreatmentsAndSync();
             displayTreatments();
             updateReports();
             closeModal('addTreatmentModal');
@@ -3193,7 +3327,7 @@
         function deleteTreatment(id) {
             if (!confirm('Delete this treatment record?')) return;
             treatments = treatments.filter(t => t.id !== id);
-            localStorage.setItem('treatments', JSON.stringify(treatments));
+            saveTreatmentsAndSync();
             displayTreatments();
             updateReports();
         }
@@ -3261,7 +3395,7 @@
                 notes: document.getElementById('editTreatmentNotes').value
             };
             
-            localStorage.setItem('treatments', JSON.stringify(treatments));
+            saveTreatmentsAndSync();
             displayTreatments();
             updateReports();
             closeModal('editTreatmentModal');
@@ -3284,7 +3418,7 @@
             };
             
             feedRecords.push(feed);
-            localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+            saveFeedAndSync();
             displayFeedRecords();
             updateReports();
             closeModal('addFeedModal');
@@ -3327,7 +3461,7 @@
         function deleteFeed(id) {
             if (!confirm('Delete this feed record?')) return;
             feedRecords = feedRecords.filter(f => f.id !== id);
-            localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+            saveFeedAndSync();
             displayFeedRecords();
             updateReports();
         }
@@ -3685,7 +3819,7 @@
             
             console.log('Updated', updatedCount, 'goats');
             
-            localStorage.setItem('goats', JSON.stringify(goats));
+            saveGoatsAndSync();
             
             displayGoats();
             updateStats();
@@ -4007,7 +4141,7 @@
             };
             
             kiddingRecords.push(kidding);
-            localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
+            saveKiddingAndSync();
             
             // Automatically add kids to registry if checked
             if (autoAdd && kidding.litterSize > 0) {
@@ -4122,7 +4256,7 @@
                     createdKids.push(kid.name);
                 }
                 
-                localStorage.setItem('goats', JSON.stringify(goats));
+                saveGoatsAndSync();
                 displayGoats();
                 updateStats();
                 updateReports();
@@ -4278,7 +4412,7 @@
         function deleteKidding(id) {
             if (!confirm('Delete this kidding record?')) return;
             kiddingRecords = kiddingRecords.filter(k => k.id !== id);
-            localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
+            saveKiddingAndSync();
             displayKiddingRecords();
             updateKiddingStats();
             populateKiddingFilters();
@@ -4341,7 +4475,13 @@
             container.innerHTML = html;
         }
         
-        function renderGoatNode(goat) {
+        function renderGoatNode(goat, renderedIds = new Set()) {
+            // Prevent infinite recursion
+            if (renderedIds.has(goat.id)) {
+                return '';
+            }
+            renderedIds.add(goat.id);
+            
             const age = calculateAge(goat.birthDate);
             const offspring = goats.filter(g => g.sire === (goat.name || goat.tag) || g.dam === (goat.name || goat.tag));
             
@@ -4367,7 +4507,7 @@
             if (offspring.length > 0) {
                 html += '<div class="tree-children">';
                 offspring.forEach(kid => {
-                    html += renderGoatNode(kid);
+                    html += renderGoatNode(kid, renderedIds);
                 });
                 html += '</div>';
             }
