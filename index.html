@@ -109,6 +109,33 @@
             font-size: 0.8rem;
         }
         
+        /* Add padding to body so header isn't covered */
+        .container {
+            padding-top: 45px;
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .sync-bar {
+                top: 5px;
+                right: 5px;
+                left: 5px;
+                justify-content: center;
+                padding: 5px 10px;
+                font-size: 0.7rem;
+                gap: 6px;
+            }
+            
+            .container {
+                padding-top: 50px;
+            }
+            
+            .sync-bar button {
+                padding: 3px 6px;
+                font-size: 0.65rem;
+            }
+        }
+        
         .sync-version {
             font-size: 0.65rem;
             color: #888;
@@ -1409,7 +1436,7 @@
                     </select>
                     <select id="statusFilter" onchange="filterGoats()">
                         <option value="">All Status</option>
-                        <option value="Active">Active</option>
+                        <option value="Active" selected>Active</option>
                         <option value="Sold">Sold</option>
                         <option value="Culled">Culled</option>
                         <option value="Deceased">Deceased</option>
@@ -2804,70 +2831,80 @@
         let currentSortColumn = null;
         let currentSortDirection = 'asc';
         
-        // Helper to get sort value - numeric if possible, otherwise lowercase string
-        function getSortValue(val) {
-            if (val === null || val === undefined || val === '') return { num: null, str: '' };
-            const num = parseFloat(val);
-            if (!isNaN(num) && String(num) === String(val).trim()) {
-                return { num: num, str: String(val).toLowerCase() };
+        // Helper to extract numeric value from a string for sorting
+        function getNumericValue(val) {
+            if (val === null || val === undefined || val === '') return null;
+            // Convert to string first, then try to parse
+            const str = String(val).trim();
+            const num = parseFloat(str);
+            // Only return as number if it's a pure number (not "10abc")
+            if (!isNaN(num) && String(num) === str) {
+                return num;
             }
-            return { num: null, str: String(val).toLowerCase() };
+            // Also handle integers that might have leading zeros
+            const int = parseInt(str, 10);
+            if (!isNaN(int) && String(int) === str) {
+                return int;
+            }
+            return null;
         }
         
         function applySortToArray(array) {
             if (!currentSortColumn) return array;
             
-            return array.sort((a, b) => {
-                let aVal, bVal;
+            return [...array].sort((a, b) => {
+                let aVal, bVal, comparison = 0;
                 
                 switch(currentSortColumn) {
                     case 'name':
                         // Sort by name, handling numeric names
-                        const aName = getSortValue(a.name || a.tag);
-                        const bName = getSortValue(b.name || b.tag);
-                        // If both are numeric, sort numerically
-                        if (aName.num !== null && bName.num !== null) {
-                            const diff = aName.num - bName.num;
-                            return currentSortDirection === 'asc' ? diff : -diff;
+                        const aNameNum = getNumericValue(a.name || a.tag);
+                        const bNameNum = getNumericValue(b.name || b.tag);
+                        if (aNameNum !== null && bNameNum !== null) {
+                            comparison = aNameNum - bNameNum;
+                        } else {
+                            aVal = String(a.name || a.tag || '').toLowerCase();
+                            bVal = String(b.name || b.tag || '').toLowerCase();
+                            comparison = aVal.localeCompare(bVal);
                         }
-                        aVal = aName.str;
-                        bVal = bName.str;
                         break;
                     case 'tag':
                         // Sort tags numerically if possible
-                        const aTag = getSortValue(a.tag);
-                        const bTag = getSortValue(b.tag);
-                        if (aTag.num !== null && bTag.num !== null) {
-                            const diff = aTag.num - bTag.num;
-                            return currentSortDirection === 'asc' ? diff : -diff;
+                        const aTagNum = getNumericValue(a.tag);
+                        const bTagNum = getNumericValue(b.tag);
+                        if (aTagNum !== null && bTagNum !== null) {
+                            comparison = aTagNum - bTagNum;
+                        } else {
+                            aVal = String(a.tag || '').toLowerCase();
+                            bVal = String(b.tag || '').toLowerCase();
+                            comparison = aVal.localeCompare(bVal);
                         }
-                        aVal = aTag.str;
-                        bVal = bTag.str;
                         break;
                     case 'status':
-                        aVal = (a.status || '').toLowerCase();
-                        bVal = (b.status || '').toLowerCase();
+                        aVal = String(a.status || '').toLowerCase();
+                        bVal = String(b.status || '').toLowerCase();
+                        comparison = aVal.localeCompare(bVal);
                         break;
                     case 'gender':
-                        aVal = (a.gender || '').toLowerCase();
-                        bVal = (b.gender || '').toLowerCase();
+                        aVal = String(a.gender || '').toLowerCase();
+                        bVal = String(b.gender || '').toLowerCase();
+                        comparison = aVal.localeCompare(bVal);
                         break;
                     case 'birthDate':
-                        aVal = a.birthDate ? new Date(a.birthDate) : new Date(0);
-                        bVal = b.birthDate ? new Date(b.birthDate) : new Date(0);
-                        return currentSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+                        aVal = a.birthDate ? new Date(a.birthDate).getTime() : 0;
+                        bVal = b.birthDate ? new Date(b.birthDate).getTime() : 0;
+                        comparison = aVal - bVal;
+                        break;
                     case 'color':
-                        aVal = (a.color || '').toLowerCase();
-                        bVal = (b.color || '').toLowerCase();
+                        aVal = String(a.color || '').toLowerCase();
+                        bVal = String(b.color || '').toLowerCase();
+                        comparison = aVal.localeCompare(bVal);
                         break;
                     default:
                         return 0;
                 }
                 
-                // Handle string comparison
-                if (aVal < bVal) return currentSortDirection === 'asc' ? -1 : 1;
-                if (aVal > bVal) return currentSortDirection === 'asc' ? 1 : -1;
-                return 0;
+                return currentSortDirection === 'asc' ? comparison : -comparison;
             });
         }
         
