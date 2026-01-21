@@ -1367,6 +1367,55 @@
                 padding: 10px;
             }
         }
+        /* Breeding Records Styles */
+        .breeding-record {
+            background: #f0f7fc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #6ba3d4;
+        }
+        
+        .doe-list {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #e5e5e5;
+        }
+        
+        .doe-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .doe-checkbox:hover {
+            background: #f5f5f5;
+        }
+        
+        .doe-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .sire-auto-note {
+            color: #155724;
+            background: #d4edda;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            display: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -1378,7 +1427,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.0</span>
+            <span class="sync-version">v1.1</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="syncAllToSheets()" title="Sync to Sheets">⬆️</button>
@@ -1408,6 +1457,7 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab('registry')">Goat Registry</button>
             <button class="tab" onclick="showTab('familytree')">Family Tree</button>
+            <button class="tab" onclick="showTab('breeding')">Breeding Records</button>
             <button class="tab" onclick="showTab('kidding')">Kidding History</button>
             <button class="tab" onclick="showTab('treatments')">Treatment Records</button>
             <button class="tab" onclick="showTab('feed')">Feed Cost Tracking</button>
@@ -1477,6 +1527,41 @@
                     </select>
                 </div>
                 <div id="familyTreeContainer"></div>
+            </div>
+        </div>
+        
+        <!-- BREEDING RECORDS TAB -->
+        <div id="breeding" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Breeding Records</h2>
+                    <button class="btn btn-primary" onclick="openAddBreedingModal()">+ Add Breeding Record</button>
+                </div>
+                
+                <div class="info-box">
+                    <h3 style="margin-bottom: 10px; font-size: 1.1rem;">💡 How Breeding Records Work</h3>
+                    <p><strong>Record when you put a buck with your does, and the app will automatically fill in the sire when you add kidding records later!</strong></p>
+                    <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                        <li>Create a breeding record with the date, sire (buck), and which does were exposed</li>
+                        <li>When you add kidding records 145-155 days later, the sire will auto-populate</li>
+                        <li>The app looks for breeding records within 180 days before the kidding date</li>
+                        <li>You can have multiple breeding records over time - the most recent one before kidding is used</li>
+                    </ul>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Sire (Buck)</th>
+                            <th>Number of Does</th>
+                            <th>Does</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="breedingTableBody"></tbody>
+                </table>
             </div>
         </div>
         
@@ -2352,12 +2437,12 @@
             <form onsubmit="addKidding(event)">
                 <div class="form-group">
                     <label>Kidding Date *</label>
-                    <input type="date" id="kiddingDate" required>
+                    <input type="date" id="kiddingDate" required onchange="updateKiddingSire()">
                 </div>
                 
                 <div class="form-group">
                     <label>Doe Name *</label>
-                    <select id="kiddingDoe" required>
+                    <select id="kiddingDoe" required onchange="updateKiddingSire()">
                         <option value="">Select Doe</option>
                     </select>
                 </div>
@@ -2367,6 +2452,9 @@
                     <select id="kiddingSire">
                         <option value="">Unknown/Select Sire</option>
                     </select>
+                    <small id="sireAutoNote" class="sire-auto-note">
+                        ✓ Auto-filled from breeding record
+                    </small>
                 </div>
                 
                 <div class="form-group">
@@ -2422,6 +2510,47 @@
         </div>
     </div>
 
+    <!-- ADD BREEDING RECORD MODAL -->
+    <div id="addBreedingModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('addBreedingModal')">&times;</button>
+            <h2 class="modal-title">Add Breeding Record</h2>
+            <form onsubmit="addBreeding(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Breeding Date *</label>
+                        <input type="date" id="breedingDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Sire (Buck) *</label>
+                        <select id="breedingSire" required>
+                            <option value="">Select Sire</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label style="margin-bottom: 15px; font-size: 1.1rem;">Select Does Exposed to This Sire *</label>
+                    <div class="doe-list" id="breedingDoeList">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="breedingNotes" rows="3" placeholder="Any notes about this breeding group..."></textarea>
+                </div>
+                
+                <div style="background: #f9f7f3; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <strong>Selected:</strong> <span id="breedingDoeCount">0</span> does
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Add Breeding Record</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         // ═══════════════════════════════════════════════════════════════
         // DATA STORAGE - Must be declared first!
@@ -2459,13 +2588,14 @@
         let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
         let feedRecords = JSON.parse(localStorage.getItem('feedRecords')) || [];
         let kiddingRecords = JSON.parse(localStorage.getItem('kiddingRecords')) || [];
+        let breedingRecords = JSON.parse(localStorage.getItem('breedingRecords')) || [];
         
         // ═══════════════════════════════════════════════════════════════
         // GOOGLE SHEETS INTEGRATION
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyQiFJjoN_kTUkA0P9KmJbE7ACzMFBJI5RmrMHPzVyoplSb0jA_Q90AY34x5ZXZ9oHE/exec';
-        const APP_VERSION = 'v1.0';
+        const APP_VERSION = 'v1.1';
         let syncEnabled = true;
         let isSyncing = false;
         
@@ -2487,7 +2617,7 @@
                     redirect: 'follow',
                     body: JSON.stringify({
                         action: 'syncFromLocal',
-                        data: { goats, treatments, kiddingRecords, feedRecords }
+                        data: { goats, treatments, kiddingRecords, feedRecords, breedingRecords }
                     })
                 });
                 const result = await response.json();
@@ -2534,6 +2664,7 @@
                     }));
                     kiddingRecords = result.data.kiddingRecords || [];
                     feedRecords = result.data.feedRecords || [];
+                    breedingRecords = result.data.breedingRecords || [];
                     saveAllData();
                     refreshAllDisplays();
                     updateSyncStatus('success', 'Loaded');
@@ -2572,6 +2703,7 @@
             localStorage.setItem('treatments', JSON.stringify(treatments));
             localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
             localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+            localStorage.setItem('breedingRecords', JSON.stringify(breedingRecords));
             
             // Auto-sync to Google Sheets
             if (syncEnabled && !isSyncing) {
@@ -2611,12 +2743,21 @@
             }
         }
         
+        // Helper function to save just breeding records and sync
+        function saveBreedingAndSync() {
+            localStorage.setItem('breedingRecords', JSON.stringify(breedingRecords));
+            if (syncEnabled && !isSyncing) {
+                syncAllToSheets();
+            }
+        }
+        
         // Helper to refresh all displays
         function refreshAllDisplays() {
             displayGoats();
             displayTreatments();
             displayFeedRecords();
             displayKiddingRecords();
+            displayBreedingRecords();
             updateStats();
             updateReports();
             renderFamilyTree();
@@ -4565,8 +4706,168 @@
             } else if (tabName === 'kidding') {
                 displayKiddingRecords();
                 updateKiddingStats();
+            } else if (tabName === 'breeding') {
+                displayBreedingRecords();
             } else if (tabName === 'reports') {
                 updateReports();
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // BREEDING RECORDS FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+        
+        function openAddBreedingModal() {
+            // Populate sire dropdown with active bucks
+            const sireSelect = document.getElementById('breedingSire');
+            sireSelect.innerHTML = '<option value="">Select Sire</option>';
+            
+            const bucks = goats.filter(g => g.gender === 'Buck' && g.status === 'Active').sort((a, b) => (a.name || a.tag).localeCompare(b.name || b.tag));
+            bucks.forEach(buck => {
+                const option = document.createElement('option');
+                option.value = buck.name || buck.tag;
+                option.textContent = `${buck.name || buck.tag} (${buck.tag})`;
+                sireSelect.appendChild(option);
+            });
+            
+            // Populate doe checkboxes
+            const doeList = document.getElementById('breedingDoeList');
+            doeList.innerHTML = '';
+            
+            const does = goats.filter(g => g.gender === 'Doe' && g.status === 'Active').sort((a, b) => (a.name || a.tag).localeCompare(b.name || b.tag));
+            does.forEach(doe => {
+                const div = document.createElement('div');
+                div.className = 'doe-checkbox';
+                div.innerHTML = `
+                    <input type="checkbox" id="breed-doe-${doe.id}" value="${doe.name || doe.tag}" onchange="updateBreedingDoeCount()">
+                    <label for="breed-doe-${doe.id}" style="margin: 0; cursor: pointer; flex: 1;">
+                        ${doe.name || doe.tag} (${doe.tag})
+                    </label>
+                `;
+                doeList.appendChild(div);
+            });
+            
+            document.getElementById('breedingDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('breedingNotes').value = '';
+            updateBreedingDoeCount();
+            
+            document.getElementById('addBreedingModal').classList.add('active');
+        }
+        
+        function updateBreedingDoeCount() {
+            const checkboxes = document.querySelectorAll('#breedingDoeList input[type="checkbox"]:checked');
+            document.getElementById('breedingDoeCount').textContent = checkboxes.length;
+        }
+        
+        function addBreeding(e) {
+            e.preventDefault();
+            
+            const checkboxes = document.querySelectorAll('#breedingDoeList input[type="checkbox"]:checked');
+            const selectedDoes = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedDoes.length === 0) {
+                alert('Please select at least one doe');
+                return;
+            }
+            
+            const breeding = {
+                id: String(Date.now()),
+                date: document.getElementById('breedingDate').value,
+                sire: document.getElementById('breedingSire').value,
+                does: selectedDoes,
+                notes: document.getElementById('breedingNotes').value
+            };
+            
+            breedingRecords.push(breeding);
+            saveBreedingAndSync();
+            displayBreedingRecords();
+            closeModal('addBreedingModal');
+            e.target.reset();
+            
+            alert(`Breeding record added: ${breeding.sire} with ${selectedDoes.length} doe(s)`);
+        }
+        
+        function displayBreedingRecords() {
+            const tbody = document.getElementById('breedingTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            breedingRecords.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(b => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${new Date(b.date).toLocaleDateString()}</td>
+                    <td><strong>${b.sire}</strong></td>
+                    <td><span class="badge badge-active">${b.does.length}</span></td>
+                    <td>${b.does.join(', ')}</td>
+                    <td>${b.notes || '-'}</td>
+                    <td>
+                        <button class="btn btn-danger btn-small" onclick="deleteBreeding('${b.id}')">Delete</button>
+                    </td>
+                `;
+            });
+            
+            if (breedingRecords.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666; padding: 40px;">No breeding records yet. Click "Add Breeding Record" to get started!</td></tr>';
+            }
+        }
+        
+        function deleteBreeding(id) {
+            if (!confirm('Delete this breeding record?')) return;
+            breedingRecords = breedingRecords.filter(b => b.id !== id);
+            saveBreedingAndSync();
+            displayBreedingRecords();
+        }
+        
+        // Function to find the most recent breeding record for a doe before a kidding date
+        function findBreedingSire(doeName, kiddingDate) {
+            if (!doeName || !kiddingDate) return null;
+            
+            const kiddingTime = new Date(kiddingDate).getTime();
+            const maxDaysBack = 180 * 24 * 60 * 60 * 1000; // 180 days in milliseconds
+            
+            // Find all breeding records where this doe was included
+            const relevantBreedings = breedingRecords.filter(b => {
+                const breedingTime = new Date(b.date).getTime();
+                const timeDiff = kiddingTime - breedingTime;
+                
+                // Breeding must be before kidding and within 180 days
+                return b.does.includes(doeName) && 
+                       timeDiff > 0 && 
+                       timeDiff <= maxDaysBack;
+            });
+            
+            if (relevantBreedings.length === 0) return null;
+            
+            // Return the most recent breeding
+            relevantBreedings.sort((a, b) => new Date(b.date) - new Date(a.date));
+            return relevantBreedings[0].sire;
+        }
+        
+        // Update the sire field when doe or date changes in kidding modal
+        function updateKiddingSire() {
+            const doe = document.getElementById('kiddingDoe').value;
+            const date = document.getElementById('kiddingDate').value;
+            const sireSelect = document.getElementById('kiddingSire');
+            const note = document.getElementById('sireAutoNote');
+            
+            if (!doe || !date) {
+                note.style.display = 'none';
+                return;
+            }
+            
+            const autoSire = findBreedingSire(doe, date);
+            
+            if (autoSire) {
+                // Find the option with this sire and select it
+                for (let i = 0; i < sireSelect.options.length; i++) {
+                    if (sireSelect.options[i].value === autoSire) {
+                        sireSelect.selectedIndex = i;
+                        note.style.display = 'block';
+                        break;
+                    }
+                }
+            } else {
+                note.style.display = 'none';
             }
         }
     </script>
