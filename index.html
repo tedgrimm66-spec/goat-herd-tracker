@@ -1429,12 +1429,24 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.1</span>
-            <div id="syncStatus" class="sync-status success">🟢 Synced</div>
+            <span class="sync-version">v1.1-SAFE</span>
+            <div id="syncStatus" class="sync-status success">🔴 Auto-sync OFF</div>
             <span id="lastSyncTime" class="sync-time"></span>
-            <button onclick="syncAllToSheets()" title="Sync to Sheets">⬆️</button>
+            <button onclick="resetLocalData()" title="Clear Local Data & Reload" style="background: #d32f2f; color: white;">🗑️ RESET</button>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
+            <button onclick="syncAllToSheets()" title="Sync to Sheets">⬆️</button>
             <button id="toggleSyncBtn" onclick="toggleSync()" title="Toggle Auto-Sync">🔄</button>
+        </div>
+        
+        <!-- Safety Warning Banner -->
+        <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
+            <h3 style="color: #856404; margin-bottom: 10px;">⚠️ SAFE MODE - Auto-Sync Disabled</h3>
+            <p style="color: #856404; margin-bottom: 15px; line-height: 1.6;">
+                <strong>First time opening on this device?</strong><br>
+                1. Click the <strong>⬇️ Download button</strong> above to load data from Google Sheets<br>
+                2. Then click <strong>🔄 button</strong> to enable auto-sync<br>
+                3. If you have duplicate data, click <strong>🗑️ RESET</strong> button first
+            </p>
         </div>
         
         <div class="stats">
@@ -2597,8 +2609,8 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBIKUvO-sF-7HOXsvK_d9tYzmoxJMo9mDO7-AMVvxbeSAQfT8LHfPkY_32BW36pvUH/exec';
-        const APP_VERSION = 'v1.1';
-        let syncEnabled = true;
+        const APP_VERSION = 'v1.1-SAFE';
+        let syncEnabled = false;  // AUTO-SYNC DISABLED FOR SAFETY - Click 🔄 button to enable
         let isSyncing = false;
         
         function updateLastSyncTime() {
@@ -2687,6 +2699,14 @@
             btn.title = syncEnabled ? 'Auto-Sync ON (click to disable)' : 'Auto-Sync OFF (click to enable)';
             btn.style.background = syncEnabled ? 'var(--light-tan)' : '#ccc';
             updateSyncStatus(syncEnabled ? 'success' : 'offline', syncEnabled ? 'Synced' : 'Offline');
+        }
+        
+        function resetLocalData() {
+            if (confirm('⚠️ WARNING: This will clear ALL local data on this device!\n\nAfter clearing, you MUST click the Download (⬇️) button to load data from Google Sheets.\n\nAre you sure?')) {
+                localStorage.clear();
+                alert('✅ Local data cleared!\n\nThe page will now reload.\n\nAfter reload, click the ⬇️ Download button to load your data from Google Sheets.');
+                location.reload();
+            }
         }
         
         function updateSyncStatus(type, message) {
