@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.1-FINAL</span>
+            <span class="sync-version">v1.1-PROTECTED</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2597,7 +2597,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwazjpSuYMl2ByB-XSsgfUEretiEa1mWLERjNzZUL6id7zsI9-VYjjZTfpQW99ydgQilA/exec';
-        const APP_VERSION = 'v1.1-FINAL';
+        const APP_VERSION = 'v1.1-PROTECTED';
         let syncEnabled = true;  // AUTO-SYNC ENABLED
         let isSyncing = false;
         
@@ -4880,6 +4880,86 @@
                 note.style.display = 'none';
             }
         }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // VERSION PROTECTION SYSTEM - Prevents old data from corrupting sync
+        // ═══════════════════════════════════════════════════════════════
+        
+        function checkAndClearOldData() {
+            const storedVersion = localStorage.getItem('dataVersion');
+            const currentVersion = APP_VERSION;
+            
+            if (!storedVersion || storedVersion !== currentVersion) {
+                console.log('⚠️ Version mismatch or missing! Clearing old data...');
+                console.log('Stored version:', storedVersion);
+                console.log('Current version:', currentVersion);
+                
+                // Clear ALL localStorage except preserve any settings if needed
+                const keysToRemove = ['goats', 'treatments', 'kiddingRecords', 'feedRecords', 'breedingRecords'];
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                
+                // Show warning banner
+                if (storedVersion && storedVersion !== currentVersion) {
+                    const banner = document.createElement('div');
+                    banner.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 10000; background: #ff9800; color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 600px; text-align: center;';
+                    banner.innerHTML = `
+                        <h3 style="margin: 0 0 10px 0;">🔄 Data Cleared - Version Updated</h3>
+                        <p style="margin: 0;">Old data detected and removed to prevent corruption.<br><strong>Click the ⬇️ Download button to load your data from Google Sheets.</strong></p>
+                        <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 10px 20px; background: white; color: #ff9800; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">OK, Got It!</button>
+                    `;
+                    document.body.appendChild(banner);
+                }
+                
+                return true; // Data was cleared
+            }
+            
+            return false; // Data is current
+        }
+        
+        // Run version check on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const wasCleared = checkAndClearOldData();
+            
+            if (wasCleared) {
+                // Data was cleared, disable auto-sync temporarily
+                syncEnabled = false;
+                updateSyncStatus('offline', '⚠️ Please Download Data');
+                const toggleBtn = document.getElementById('toggleSyncBtn');
+                if (toggleBtn) {
+                    toggleBtn.textContent = '⚫';
+                    toggleBtn.style.background = '#ccc';
+                    toggleBtn.title = 'Auto-Sync OFF - Download data first';
+                }
+            } else {
+                // Data version is current, proceed normally
+                refreshAllDisplays();
+            }
+        });
+        
+        // Update saveAllData to save version
+        const originalSaveAllData = saveAllData;
+        saveAllData = function() {
+            originalSaveAllData();
+            localStorage.setItem('dataVersion', APP_VERSION);
+        };
+        
+        // Update loadAllFromSheets to save version after successful load
+        const originalLoadAllFromSheets = loadAllFromSheets;
+        loadAllFromSheets = async function() {
+            await originalLoadAllFromSheets();
+            // After successful load, save the version and re-enable sync
+            localStorage.setItem('dataVersion', APP_VERSION);
+            if (!syncEnabled) {
+                syncEnabled = true;
+                updateSyncStatus('success', 'Synced');
+                const toggleBtn = document.getElementById('toggleSyncBtn');
+                if (toggleBtn) {
+                    toggleBtn.textContent = '🔄';
+                    toggleBtn.style.background = 'var(--light-tan)';
+                    toggleBtn.title = 'Auto-Sync ON';
+                }
+            }
+        };
     </script>
 </body>
 </html>
