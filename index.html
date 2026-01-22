@@ -1429,24 +1429,12 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.1-FRESH-START</span>
-            <div id="syncStatus" class="sync-status success">🔴 Auto-sync OFF</div>
+            <span class="sync-version">v1.1-FINAL</span>
+            <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
-            <button onclick="resetLocalData()" title="Clear Local Data & Reload" style="background: #d32f2f; color: white;">🗑️ RESET</button>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
             <button onclick="syncAllToSheets()" title="Sync to Sheets">⬆️</button>
             <button id="toggleSyncBtn" onclick="toggleSync()" title="Toggle Auto-Sync">🔄</button>
-        </div>
-        
-        <!-- Safety Warning Banner -->
-        <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
-            <h3 style="color: #856404; margin-bottom: 10px;">⚠️ SAFE MODE - Auto-Sync Disabled</h3>
-            <p style="color: #856404; margin-bottom: 15px; line-height: 1.6;">
-                <strong>First time opening on this device?</strong><br>
-                1. Click the <strong>⬇️ Download button</strong> above to load data from Google Sheets<br>
-                2. Then click <strong>🔄 button</strong> to enable auto-sync<br>
-                3. If you have duplicate data, click <strong>🗑️ RESET</strong> button first
-            </p>
         </div>
         
         <div class="stats">
@@ -2609,8 +2597,8 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwazjpSuYMl2ByB-XSsgfUEretiEa1mWLERjNzZUL6id7zsI9-VYjjZTfpQW99ydgQilA/exec';
-        const APP_VERSION = 'v1.1-FRESH-START';
-        let syncEnabled = false;  // AUTO-SYNC DISABLED FOR SAFETY - Click 🔄 button to enable
+        const APP_VERSION = 'v1.1-FINAL';
+        let syncEnabled = true;  // AUTO-SYNC ENABLED
         let isSyncing = false;
         
         function updateLastSyncTime() {
