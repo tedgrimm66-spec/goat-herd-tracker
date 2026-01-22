@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.1-PROTECTED</span>
+            <span class="sync-version">v1.1-PROTECTED-v2</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2597,7 +2597,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwazjpSuYMl2ByB-XSsgfUEretiEa1mWLERjNzZUL6id7zsI9-VYjjZTfpQW99ydgQilA/exec';
-        const APP_VERSION = 'v1.1-PROTECTED';
+        const APP_VERSION = 'v1.1-PROTECTED-v2';
         let syncEnabled = true;  // AUTO-SYNC ENABLED
         let isSyncing = false;
         
@@ -2879,7 +2879,7 @@
                     tag: tag,
                     status: 'Active',
                     gender: document.getElementById('gender').value,
-                    birthDate: birthDate,
+                    birthDate: document.getElementById('birthDate').value,
                     sire: document.getElementById('sire').value.trim(),
                     dam: document.getElementById('dam').value.trim(),
                     color: document.getElementById('color').value.trim(),
