@@ -1429,12 +1429,11 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.1-FINAL-BOUND</span>
+            <span class="sync-version">v1.2-ALWAYS-SYNC</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
             <button onclick="syncAllToSheets()" title="Sync to Sheets">⬆️</button>
-            <button id="toggleSyncBtn" onclick="toggleSync()" title="Toggle Auto-Sync">🔄</button>
         </div>
         
         <div class="stats">
@@ -2597,9 +2596,17 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.1-FINAL-BOUND';
-        let syncEnabled = true;  // AUTO-SYNC ENABLED
+        const APP_VERSION = 'v1.2-ALWAYS-SYNC';
+        const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
+        
+        // Auto-sync every 2 minutes as backup
+        setInterval(() => {
+            if (!isSyncing) {
+                console.log('⏰ Auto-sync interval triggered');
+                syncAllToSheets();
+            }
+        }, 2 * 60 * 1000); // 2 minutes
         
         function updateLastSyncTime() {
             const now = new Date();
@@ -2678,15 +2685,6 @@
                 isSyncing = false;
                 updateSyncStatus('error', 'Error');
             }
-        }
-        
-        function toggleSync() {
-            syncEnabled = !syncEnabled;
-            const btn = document.getElementById('toggleSyncBtn');
-            btn.textContent = syncEnabled ? '🔄' : '⚫';
-            btn.title = syncEnabled ? 'Auto-Sync ON (click to disable)' : 'Auto-Sync OFF (click to enable)';
-            btn.style.background = syncEnabled ? 'var(--light-tan)' : '#ccc';
-            updateSyncStatus(syncEnabled ? 'success' : 'offline', syncEnabled ? 'Synced' : 'Offline');
         }
         
         function resetLocalData() {
@@ -4931,15 +4929,8 @@
             const wasCleared = checkAndClearOldData();
             
             if (wasCleared) {
-                // Data was cleared, disable auto-sync temporarily
-                syncEnabled = false;
+                // Data was cleared, prompt user to download
                 updateSyncStatus('offline', '⚠️ Please Download Data');
-                const toggleBtn = document.getElementById('toggleSyncBtn');
-                if (toggleBtn) {
-                    toggleBtn.textContent = '⚫';
-                    toggleBtn.style.background = '#ccc';
-                    toggleBtn.title = 'Auto-Sync OFF - Download data first';
-                }
             } else {
                 // Data version is current, proceed normally
                 refreshAllDisplays();
@@ -4957,18 +4948,9 @@
         const originalLoadAllFromSheets = loadAllFromSheets;
         loadAllFromSheets = async function() {
             await originalLoadAllFromSheets();
-            // After successful load, save the version and re-enable sync
+            // After successful load, save the version
             localStorage.setItem('dataVersion', APP_VERSION);
-            if (!syncEnabled) {
-                syncEnabled = true;
-                updateSyncStatus('success', 'Synced');
-                const toggleBtn = document.getElementById('toggleSyncBtn');
-                if (toggleBtn) {
-                    toggleBtn.textContent = '🔄';
-                    toggleBtn.style.background = 'var(--light-tan)';
-                    toggleBtn.title = 'Auto-Sync ON';
-                }
-            }
+            updateSyncStatus('success', 'Synced');
         };
     </script>
 </body>
