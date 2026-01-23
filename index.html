@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.2-ALWAYS-SYNC</span>
+            <span class="sync-version">v1.3-STABLE-SYNC</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2596,9 +2596,28 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.2-ALWAYS-SYNC';
+        const APP_VERSION = 'v1.3-STABLE-SYNC';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
+        let syncTimeout = null;
+        
+        // Failsafe: Reset sync status if stuck for more than 30 seconds
+        function startSyncTimeout() {
+            clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => {
+                if (isSyncing) {
+                    console.log('⚠️ Sync timeout - resetting status');
+                    isSyncing = false;
+                    updateSyncStatus('error', 'Timeout - Retrying...');
+                    // Auto-retry after timeout
+                    setTimeout(() => syncAllToSheets(), 2000);
+                }
+            }, 30000); // 30 second timeout
+        }
+        
+        function clearSyncTimeout() {
+            clearTimeout(syncTimeout);
+        }
         
         // Auto-sync every 2 minutes as backup
         setInterval(() => {
@@ -2619,6 +2638,7 @@
             if (!syncEnabled || isSyncing) return;
             isSyncing = true;
             updateSyncStatus('syncing', 'Syncing...');
+            startSyncTimeout(); // Start the failsafe timer
             
             try {
                 const response = await fetch(APPS_SCRIPT_URL, {
@@ -2630,6 +2650,7 @@
                     })
                 });
                 const result = await response.json();
+                clearSyncTimeout(); // Clear the failsafe timer
                 isSyncing = false;
                 if (result.status === 'success') {
                     updateSyncStatus('success', 'Synced');
@@ -2638,15 +2659,18 @@
                     updateSyncStatus('error', 'Failed');
                 }
             } catch (e) {
+                clearSyncTimeout(); // Clear the failsafe timer
                 isSyncing = false;
                 updateSyncStatus('error', 'Error');
+                console.log('Sync error:', e);
             }
         }
         
         async function loadAllFromSheets() {
-            if (isSyncing) return;  // FIXED: Download works even when auto-sync is OFF
+            if (isSyncing) return;
             isSyncing = true;
-            updateSyncStatus('syncing', 'Loading from Google Sheets...');
+            updateSyncStatus('syncing', 'Loading...');
+            startSyncTimeout(); // Start the failsafe timer
             
             try {
                 const response = await fetch(APPS_SCRIPT_URL + '?action=getAllData', {
@@ -2654,6 +2678,7 @@
                     redirect: 'follow'
                 });
                 const result = await response.json();
+                clearSyncTimeout(); // Clear the failsafe timer
                 isSyncing = false;
                 
                 if (result.status === 'success' && result.data) {
@@ -2682,8 +2707,10 @@
                     updateSyncStatus('error', 'Failed');
                 }
             } catch (e) {
+                clearSyncTimeout(); // Clear the failsafe timer
                 isSyncing = false;
                 updateSyncStatus('error', 'Error');
+                console.log('Load error:', e);
             }
         }
         
