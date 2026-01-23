@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.5-MULTI</span>
+            <span class="sync-version">v1.6</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2552,6 +2552,137 @@
         </div>
     </div>
 
+    <!-- EDIT FEED MODAL -->
+    <div id="editFeedModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('editFeedModal')">&times;</button>
+            <h2 class="modal-title">Edit Feed Purchase</h2>
+            <form onsubmit="updateFeed(event)">
+                <input type="hidden" id="editFeedId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Date *</label>
+                        <input type="date" id="editFeedDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Feed Type *</label>
+                        <input type="text" id="editFeedType" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity *</label>
+                        <input type="text" id="editFeedQuantity" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Cost *</label>
+                        <input type="number" id="editFeedCost" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Supplier</label>
+                        <input type="text" id="editFeedSupplier">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="editFeedNotes"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT KIDDING MODAL -->
+    <div id="editKiddingModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('editKiddingModal')">&times;</button>
+            <h2 class="modal-title">Edit Kidding Record</h2>
+            <form onsubmit="updateKidding(event)">
+                <input type="hidden" id="editKiddingId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Kidding Date *</label>
+                        <input type="date" id="editKiddingDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Doe *</label>
+                        <select id="editKiddingDoe" required>
+                            <option value="">Select Doe</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Sire</label>
+                        <select id="editKiddingSire">
+                            <option value="">Unknown</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Bucklings (Males)</label>
+                        <input type="number" id="editKiddingBucklings" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Doelings (Females)</label>
+                        <input type="number" id="editKiddingDoelings" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Stillborn</label>
+                        <input type="number" id="editKiddingStillborn" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Kidding Ease</label>
+                        <select id="editKiddingEase">
+                            <option value="1">1 - Very Easy</option>
+                            <option value="2">2 - Easy</option>
+                            <option value="3">3 - Moderate</option>
+                            <option value="4">4 - Difficult</option>
+                            <option value="5">5 - Very Difficult</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="editKiddingNotes" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT BREEDING MODAL -->
+    <div id="editBreedingModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('editBreedingModal')">&times;</button>
+            <h2 class="modal-title">Edit Breeding Record</h2>
+            <form onsubmit="updateBreeding(event)">
+                <input type="hidden" id="editBreedingId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Breeding Date *</label>
+                        <input type="date" id="editBreedingDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Sire (Buck) *</label>
+                        <select id="editBreedingSire" required>
+                            <option value="">Select Sire</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="margin-bottom: 15px; font-size: 1.1rem;">Select Does Exposed to This Sire *</label>
+                    <div class="doe-list" id="editBreedingDoeList">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="editBreedingNotes" rows="3"></textarea>
+                </div>
+                <div style="background: #f9f7f3; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <strong>Selected:</strong> <span id="editBreedingDoeCount">0</span> does
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         // ═══════════════════════════════════════════════════════════════
         // DATA STORAGE - Must be declared first!
@@ -2632,7 +2763,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.5-MULTI-DEVICE';
+        const APP_VERSION = 'v1.6-EDITABLE';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
         let syncTimeout = null;
@@ -3702,17 +3833,55 @@
                     <td>$${f.cost.toFixed(2)}</td>
                     <td>${f.supplier || '-'}</td>
                     <td>${f.notes || '-'}</td>
-                    <td><button class="btn btn-danger btn-small" onclick="deleteFeed(${f.id})">Delete</button></td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="editFeed('${f.id}')">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteFeed('${f.id}')">Delete</button>
+                    </td>
                 `;
             });
         }
         
         function deleteFeed(id) {
             if (!confirm('Delete this feed record?')) return;
-            feedRecords = feedRecords.filter(f => f.id !== id);
+            feedRecords = feedRecords.filter(f => String(f.id) !== String(id));
             saveFeedAndSync();
             displayFeedRecords();
             updateReports();
+        }
+        
+        function editFeed(id) {
+            const feed = feedRecords.find(f => String(f.id) === String(id));
+            if (!feed) return;
+            
+            document.getElementById('editFeedId').value = feed.id;
+            document.getElementById('editFeedDate').value = feed.date;
+            document.getElementById('editFeedType').value = feed.type || '';
+            document.getElementById('editFeedQuantity').value = feed.quantity || '';
+            document.getElementById('editFeedCost').value = feed.cost || 0;
+            document.getElementById('editFeedSupplier').value = feed.supplier || '';
+            document.getElementById('editFeedNotes').value = feed.notes || '';
+            
+            document.getElementById('editFeedModal').classList.add('active');
+        }
+        
+        function updateFeed(e) {
+            e.preventDefault();
+            const id = document.getElementById('editFeedId').value;
+            const feed = feedRecords.find(f => String(f.id) === String(id));
+            
+            if (feed) {
+                feed.date = document.getElementById('editFeedDate').value;
+                feed.type = document.getElementById('editFeedType').value;
+                feed.quantity = document.getElementById('editFeedQuantity').value;
+                feed.cost = parseFloat(document.getElementById('editFeedCost').value);
+                feed.supplier = document.getElementById('editFeedSupplier').value;
+                feed.notes = document.getElementById('editFeedNotes').value;
+                
+                saveFeedAndSync();
+                displayFeedRecords();
+                updateReports();
+                closeModal('editFeedModal');
+            }
         }
         
         function updateStats() {
@@ -4549,7 +4718,10 @@
                     <td>${k.doelings}</td>
                     <td>${k.ease}/5</td>
                     <td>${k.notes || '-'}</td>
-                    <td><button class="btn btn-danger btn-small" onclick="deleteKidding('${k.id}')">Delete</button></td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="editKidding('${k.id}')">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteKidding('${k.id}')">Delete</button>
+                    </td>
                 `;
             });
             
@@ -4660,11 +4832,78 @@
         
         function deleteKidding(id) {
             if (!confirm('Delete this kidding record?')) return;
-            kiddingRecords = kiddingRecords.filter(k => k.id !== id);
+            kiddingRecords = kiddingRecords.filter(k => String(k.id) !== String(id));
             saveKiddingAndSync();
             displayKiddingRecords();
             updateKiddingStats();
             populateKiddingFilters();
+        }
+        
+        function editKidding(id) {
+            const kidding = kiddingRecords.find(k => String(k.id) === String(id));
+            if (!kidding) return;
+            
+            // Populate doe dropdown
+            const doeSelect = document.getElementById('editKiddingDoe');
+            doeSelect.innerHTML = '<option value="">Select Doe</option>';
+            goats.filter(g => g.gender === 'Doe').forEach(g => {
+                const option = document.createElement('option');
+                option.value = g.name || g.tag;
+                option.textContent = g.name ? `${g.name} (${g.tag})` : g.tag;
+                doeSelect.appendChild(option);
+            });
+            
+            // Populate sire dropdown
+            const sireSelect = document.getElementById('editKiddingSire');
+            sireSelect.innerHTML = '<option value="">Unknown</option>';
+            goats.filter(g => g.gender === 'Buck').forEach(g => {
+                const option = document.createElement('option');
+                option.value = g.name || g.tag;
+                option.textContent = g.name ? `${g.name} (${g.tag})` : g.tag;
+                sireSelect.appendChild(option);
+            });
+            
+            // Fill in form values
+            document.getElementById('editKiddingId').value = kidding.id;
+            document.getElementById('editKiddingDate').value = kidding.date;
+            document.getElementById('editKiddingDoe').value = kidding.doe;
+            document.getElementById('editKiddingSire').value = kidding.sire || '';
+            document.getElementById('editKiddingBucklings').value = kidding.bucklings || 0;
+            document.getElementById('editKiddingDoelings').value = kidding.doelings || 0;
+            document.getElementById('editKiddingStillborn').value = kidding.stillborn || 0;
+            document.getElementById('editKiddingEase').value = kidding.ease || 1;
+            document.getElementById('editKiddingNotes').value = kidding.notes || '';
+            
+            document.getElementById('editKiddingModal').classList.add('active');
+        }
+        
+        function updateKidding(e) {
+            e.preventDefault();
+            const id = document.getElementById('editKiddingId').value;
+            const kidding = kiddingRecords.find(k => String(k.id) === String(id));
+            
+            if (kidding) {
+                const bucklings = parseInt(document.getElementById('editKiddingBucklings').value) || 0;
+                const doelings = parseInt(document.getElementById('editKiddingDoelings').value) || 0;
+                const stillborn = parseInt(document.getElementById('editKiddingStillborn').value) || 0;
+                const date = document.getElementById('editKiddingDate').value;
+                
+                kidding.date = date;
+                kidding.doe = document.getElementById('editKiddingDoe').value;
+                kidding.sire = document.getElementById('editKiddingSire').value;
+                kidding.bucklings = bucklings;
+                kidding.doelings = doelings;
+                kidding.stillborn = stillborn;
+                kidding.ease = parseInt(document.getElementById('editKiddingEase').value) || 1;
+                kidding.notes = document.getElementById('editKiddingNotes').value;
+                kidding.litterSize = bucklings + doelings + stillborn;
+                kidding.year = new Date(date).getFullYear();
+                
+                saveKiddingAndSync();
+                displayKiddingRecords();
+                updateKiddingStats();
+                closeModal('editKiddingModal');
+            }
         }
         
         // Family Tree Functions
@@ -4872,6 +5111,7 @@
                     <td>${b.does.join(', ')}</td>
                     <td>${b.notes || '-'}</td>
                     <td>
+                        <button class="btn btn-secondary btn-small" onclick="editBreeding('${b.id}')">Edit</button>
                         <button class="btn btn-danger btn-small" onclick="deleteBreeding('${b.id}')">Delete</button>
                     </td>
                 `;
@@ -4884,9 +5124,79 @@
         
         function deleteBreeding(id) {
             if (!confirm('Delete this breeding record?')) return;
-            breedingRecords = breedingRecords.filter(b => b.id !== id);
+            breedingRecords = breedingRecords.filter(b => String(b.id) !== String(id));
             saveBreedingAndSync();
             displayBreedingRecords();
+        }
+        
+        function editBreeding(id) {
+            const breeding = breedingRecords.find(b => String(b.id) === String(id));
+            if (!breeding) return;
+            
+            // Populate sire dropdown
+            const sireSelect = document.getElementById('editBreedingSire');
+            sireSelect.innerHTML = '<option value="">Select Sire</option>';
+            goats.filter(g => g.gender === 'Buck' && g.status === 'Active').forEach(g => {
+                const option = document.createElement('option');
+                option.value = g.name || g.tag;
+                option.textContent = g.name ? `${g.name} (${g.tag})` : g.tag;
+                sireSelect.appendChild(option);
+            });
+            
+            // Populate doe checkboxes
+            const doeList = document.getElementById('editBreedingDoeList');
+            doeList.innerHTML = '';
+            const activeDoes = goats.filter(g => g.gender === 'Doe' && g.status === 'Active');
+            activeDoes.forEach(g => {
+                const doeName = g.name || g.tag;
+                const isChecked = breeding.does.includes(doeName);
+                const div = document.createElement('div');
+                div.className = 'doe-checkbox';
+                div.innerHTML = `
+                    <input type="checkbox" id="editBreedingDoe-${g.id}" value="${doeName}" onchange="updateEditBreedingDoeCount()" ${isChecked ? 'checked' : ''}>
+                    <label for="editBreedingDoe-${g.id}">${g.name ? `${g.name} (${g.tag})` : g.tag}</label>
+                `;
+                doeList.appendChild(div);
+            });
+            
+            // Fill in form values
+            document.getElementById('editBreedingId').value = breeding.id;
+            document.getElementById('editBreedingDate').value = breeding.date;
+            document.getElementById('editBreedingSire').value = breeding.sire;
+            document.getElementById('editBreedingNotes').value = breeding.notes || '';
+            
+            updateEditBreedingDoeCount();
+            document.getElementById('editBreedingModal').classList.add('active');
+        }
+        
+        function updateEditBreedingDoeCount() {
+            const checkboxes = document.querySelectorAll('#editBreedingDoeList input[type="checkbox"]:checked');
+            document.getElementById('editBreedingDoeCount').textContent = checkboxes.length;
+        }
+        
+        function updateBreeding(e) {
+            e.preventDefault();
+            const id = document.getElementById('editBreedingId').value;
+            const breeding = breedingRecords.find(b => String(b.id) === String(id));
+            
+            if (breeding) {
+                const checkboxes = document.querySelectorAll('#editBreedingDoeList input[type="checkbox"]:checked');
+                const selectedDoes = Array.from(checkboxes).map(cb => cb.value);
+                
+                if (selectedDoes.length === 0) {
+                    alert('Please select at least one doe');
+                    return;
+                }
+                
+                breeding.date = document.getElementById('editBreedingDate').value;
+                breeding.sire = document.getElementById('editBreedingSire').value;
+                breeding.does = selectedDoes;
+                breeding.notes = document.getElementById('editBreedingNotes').value;
+                
+                saveBreedingAndSync();
+                displayBreedingRecords();
+                closeModal('editBreedingModal');
+            }
         }
         
         // Function to find the most recent breeding record for a doe before a kidding date
