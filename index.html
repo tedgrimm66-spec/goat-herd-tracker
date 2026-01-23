@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.6</span>
+            <span class="sync-version">v1.7</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2752,9 +2752,22 @@
             };
         }
         
+        // Helper to sanitize feed record data
+        function sanitizeFeed(f) {
+            return {
+                id: String(f.id || Date.now()),
+                date: String(f.date || ''),
+                type: String(f.type || f.feedType || ''),
+                quantity: String(f.quantity || f.amount || ''),
+                cost: parseFloat(f.cost) || 0,
+                supplier: String(f.supplier || ''),
+                notes: String(f.notes || '')
+            };
+        }
+        
         let goats = (JSON.parse(localStorage.getItem('goats')) || []).map(sanitizeGoat);
         let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
-        let feedRecords = JSON.parse(localStorage.getItem('feedRecords')) || [];
+        let feedRecords = (JSON.parse(localStorage.getItem('feedRecords')) || []).map(sanitizeFeed);
         let kiddingRecords = (JSON.parse(localStorage.getItem('kiddingRecords')) || []).map(sanitizeKidding);
         let breedingRecords = JSON.parse(localStorage.getItem('breedingRecords')) || [];
         
@@ -2763,7 +2776,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.6-EDITABLE';
+        const APP_VERSION = 'v1.7-FIXES';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
         let syncTimeout = null;
@@ -2864,7 +2877,7 @@
                         notes: String(t.notes || '')
                     }));
                     kiddingRecords = (result.data.kiddingRecords || []).map(sanitizeKidding);
-                    feedRecords = result.data.feedRecords || [];
+                    feedRecords = (result.data.feedRecords || []).map(sanitizeFeed);
                     breedingRecords = result.data.breedingRecords || [];
                     saveAllData();
                     refreshAllDisplays();
@@ -2989,7 +3002,7 @@
                             goats = result.data.goats.map(sanitizeGoat);
                             treatments = result.data.treatments || [];
                             kiddingRecords = (result.data.kiddingRecords || []).map(sanitizeKidding);
-                            feedRecords = result.data.feedRecords || [];
+                            feedRecords = (result.data.feedRecords || []).map(sanitizeFeed);
                             // Don't call saveAllData here to avoid re-syncing on load
                             localStorage.setItem('goats', JSON.stringify(goats));
                             localStorage.setItem('treatments', JSON.stringify(treatments));
@@ -4541,8 +4554,8 @@
             const kiddingDate = document.getElementById('kiddingDate').value;
             const doe = document.getElementById('kiddingDoe').value;
             const sire = document.getElementById('kiddingSire').value;
-            const numBucks = parseInt(document.getElementById('kiddingBucks').value);
-            const numDoes = parseInt(document.getElementById('kiddingDoes').value);
+            const numBucks = parseInt(document.getElementById('kiddingBucks').value) || 0;
+            const numDoes = parseInt(document.getElementById('kiddingDoes').value) || 0;
             const autoAdd = document.getElementById('kiddingAutoAdd').checked;
             
             const kidding = {
@@ -4551,10 +4564,11 @@
                 doe: doe,
                 sire: sire,
                 year: new Date(kiddingDate).getFullYear(),
-                bucks: numBucks,
-                does: numDoes,
+                bucklings: numBucks,
+                doelings: numDoes,
+                stillborn: 0,
                 litterSize: numBucks + numDoes,
-                ease: parseInt(document.getElementById('kiddingEase').value),
+                ease: parseInt(document.getElementById('kiddingEase').value) || 1,
                 notes: document.getElementById('kiddingNotes').value
             };
             
