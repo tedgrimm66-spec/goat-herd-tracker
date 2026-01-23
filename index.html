@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.3-STABLE-SYNC</span>
+            <span class="sync-version">v1.4-NAN-FIX</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2585,10 +2585,46 @@
             };
         }
         
+        // Helper to sanitize kidding record data
+        function sanitizeKidding(k) {
+            const bucklings = parseInt(k.bucklings) || 0;
+            const doelings = parseInt(k.doelings) || 0;
+            const stillborn = parseInt(k.stillborn) || 0;
+            const litterSize = bucklings + doelings + stillborn;
+            const year = k.date ? new Date(k.date).getFullYear() : new Date().getFullYear();
+            
+            // Safely parse kidTags
+            let kidTags = [];
+            if (Array.isArray(k.kidTags)) {
+                kidTags = k.kidTags;
+            } else if (k.kidTags && typeof k.kidTags === 'string') {
+                try {
+                    kidTags = JSON.parse(k.kidTags);
+                } catch (e) {
+                    kidTags = [];
+                }
+            }
+            
+            return {
+                id: String(k.id || Date.now()),
+                date: String(k.date || ''),
+                doe: String(k.doe || ''),
+                sire: String(k.sire || ''),
+                bucklings: bucklings,
+                doelings: doelings,
+                stillborn: stillborn,
+                ease: parseInt(k.ease) || 0,
+                kidTags: kidTags,
+                notes: String(k.notes || ''),
+                litterSize: litterSize,
+                year: year
+            };
+        }
+        
         let goats = (JSON.parse(localStorage.getItem('goats')) || []).map(sanitizeGoat);
         let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
         let feedRecords = JSON.parse(localStorage.getItem('feedRecords')) || [];
-        let kiddingRecords = JSON.parse(localStorage.getItem('kiddingRecords')) || [];
+        let kiddingRecords = (JSON.parse(localStorage.getItem('kiddingRecords')) || []).map(sanitizeKidding);
         let breedingRecords = JSON.parse(localStorage.getItem('breedingRecords')) || [];
         
         // ═══════════════════════════════════════════════════════════════
@@ -2596,7 +2632,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.3-STABLE-SYNC';
+        const APP_VERSION = 'v1.4-NAN-FIX';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
         let syncTimeout = null;
@@ -2696,7 +2732,7 @@
                         cost: t.cost || 0,
                         notes: String(t.notes || '')
                     }));
-                    kiddingRecords = result.data.kiddingRecords || [];
+                    kiddingRecords = (result.data.kiddingRecords || []).map(sanitizeKidding);
                     feedRecords = result.data.feedRecords || [];
                     breedingRecords = result.data.breedingRecords || [];
                     saveAllData();
@@ -2821,7 +2857,7 @@
                         if (result.data.goats && result.data.goats.length > 0) {
                             goats = result.data.goats.map(sanitizeGoat);
                             treatments = result.data.treatments || [];
-                            kiddingRecords = result.data.kiddingRecords || [];
+                            kiddingRecords = (result.data.kiddingRecords || []).map(sanitizeKidding);
                             feedRecords = result.data.feedRecords || [];
                             // Don't call saveAllData here to avoid re-syncing on load
                             localStorage.setItem('goats', JSON.stringify(goats));
