@@ -1001,13 +1001,12 @@
             }
             
             thead {
-                display: table;
+                display: table-header-group;
                 width: 100%;
-                table-layout: auto;
             }
             
             tbody {
-                display: table;
+                display: table-row-group;
                 width: 100%;
             }
             
@@ -1017,17 +1016,18 @@
             
             th, td {
                 display: table-cell;
-                padding: 8px 5px;
-                font-size: 0.75rem;
+                padding: 6px 3px;
+                font-size: 0.65rem;
                 vertical-align: middle;
+                word-break: break-word;
             }
             
             th:first-child, td:first-child {
-                padding-left: 8px;
+                padding-left: 6px;
             }
             
             th:last-child, td:last-child {
-                padding-right: 8px;
+                padding-right: 6px;
             }
             
             /* Make buttons full width on mobile */
@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.4-NAN-FIX</span>
+            <span class="sync-version">v1.5-MULTI</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2632,7 +2632,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.4-NAN-FIX';
+        const APP_VERSION = 'v1.5-MULTI-DEVICE';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
         let syncTimeout = null;
@@ -4545,11 +4545,11 @@
                     <td>${k.sire || 'Unknown'}</td>
                     <td>${k.year}</td>
                     <td><span class="badge badge-active">${k.litterSize} (${sizeType})</span></td>
-                    <td>${k.bucks}</td>
-                    <td>${k.does}</td>
+                    <td>${k.bucklings}</td>
+                    <td>${k.doelings}</td>
                     <td>${k.ease}/5</td>
                     <td>${k.notes || '-'}</td>
-                    <td><button class="btn btn-danger btn-small" onclick="deleteKidding(${k.id})">Delete</button></td>
+                    <td><button class="btn btn-danger btn-small" onclick="deleteKidding('${k.id}')">Delete</button></td>
                 `;
             });
             
