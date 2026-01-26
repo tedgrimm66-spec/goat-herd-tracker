@@ -3399,6 +3399,48 @@
         // GOOGLE DRIVE PHOTO HANDLING
         // ═══════════════════════════════════════════════════════════════
         
+        // Compress/resize image to reduce file size
+        function compressImage(file, maxWidth = 1600, quality = 0.8) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // Calculate new dimensions
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                        
+                        // Create canvas and draw resized image
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Convert to compressed JPEG
+                        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                        
+                        // Log compression results
+                        const originalSize = (file.size / 1024 / 1024).toFixed(2);
+                        const compressedSize = (compressedBase64.length * 0.75 / 1024 / 1024).toFixed(2);
+                        console.log(`📷 Photo compressed: ${originalSize}MB → ~${compressedSize}MB (${width}x${height})`);
+                        
+                        resolve(compressedBase64);
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        
         // Upload photo to Google Drive and return the URL
         async function uploadPhotoToDrive(base64Data, goatTag) {
             try {
@@ -3436,25 +3478,42 @@
             }
         }
         
-        // Preview photo before upload (stores base64 temporarily)
-        function previewPhoto(input, previewId) {
+        // Preview photo before upload (compresses and stores base64 temporarily)
+        async function previewPhoto(input, previewId) {
             const preview = document.getElementById(previewId);
             if (input.files && input.files[0]) {
-                // Check file size (limit to 5MB)
-                if (input.files[0].size > 5 * 1024 * 1024) {
-                    alert('Photo is too large! Please choose a photo under 5MB.');
-                    input.value = '';
-                    return;
-                }
+                const file = input.files[0];
+                const fileSizeMB = file.size / 1024 / 1024;
                 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
+                try {
+                    // Show loading state
                     preview.style.display = 'block';
-                    // Store base64 temporarily for upload
-                    preview.dataset.base64 = e.target.result;
-                };
-                reader.readAsDataURL(input.files[0]);
+                    preview.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect fill="%23f0f0f0" width="200" height="150"/><text x="50%" y="50%" text-anchor="middle" fill="%23999" font-size="14">Compressing...</text></svg>';
+                    
+                    // Compress if larger than 1MB
+                    let base64Data;
+                    if (fileSizeMB > 1) {
+                        console.log(`📷 Compressing ${fileSizeMB.toFixed(2)}MB photo...`);
+                        base64Data = await compressImage(file, 1600, 0.8);
+                    } else {
+                        // Small file, just read it directly
+                        base64Data = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                    
+                    preview.src = base64Data;
+                    preview.dataset.base64 = base64Data;
+                    
+                } catch (error) {
+                    console.error('Error processing photo:', error);
+                    alert('Error processing photo. Please try another image.');
+                    input.value = '';
+                    preview.style.display = 'none';
+                }
             }
         }
         
