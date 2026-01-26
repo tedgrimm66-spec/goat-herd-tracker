@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.7</span>
+            <span class="sync-version">v1.8</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2765,18 +2765,42 @@
             };
         }
         
+        // Helper to sanitize breeding record data
+        function sanitizeBreeding(b) {
+            // Handle does array - could be string from Sheets or already an array
+            let doesArray = [];
+            if (Array.isArray(b.does)) {
+                doesArray = b.does;
+            } else if (b.does && typeof b.does === 'string') {
+                try {
+                    doesArray = JSON.parse(b.does);
+                } catch (e) {
+                    // If not valid JSON, might be comma-separated
+                    doesArray = b.does.split(',').map(d => d.trim()).filter(d => d);
+                }
+            }
+            
+            return {
+                id: String(b.id || Date.now()),
+                date: String(b.date || ''),
+                sire: String(b.sire || ''),
+                does: doesArray,
+                notes: String(b.notes || '')
+            };
+        }
+        
         let goats = (JSON.parse(localStorage.getItem('goats')) || []).map(sanitizeGoat);
         let treatments = JSON.parse(localStorage.getItem('treatments')) || [];
         let feedRecords = (JSON.parse(localStorage.getItem('feedRecords')) || []).map(sanitizeFeed);
         let kiddingRecords = (JSON.parse(localStorage.getItem('kiddingRecords')) || []).map(sanitizeKidding);
-        let breedingRecords = JSON.parse(localStorage.getItem('breedingRecords')) || [];
+        let breedingRecords = (JSON.parse(localStorage.getItem('breedingRecords')) || []).map(sanitizeBreeding);
         
         // ═══════════════════════════════════════════════════════════════
         // GOOGLE SHEETS INTEGRATION
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.7-FIXES';
+        const APP_VERSION = 'v1.8-BREEDING-FIX';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
         let syncTimeout = null;
@@ -2878,7 +2902,7 @@
                     }));
                     kiddingRecords = (result.data.kiddingRecords || []).map(sanitizeKidding);
                     feedRecords = (result.data.feedRecords || []).map(sanitizeFeed);
-                    breedingRecords = result.data.breedingRecords || [];
+                    breedingRecords = (result.data.breedingRecords || []).map(sanitizeBreeding);
                     saveAllData();
                     refreshAllDisplays();
                     updateSyncStatus('success', 'Loaded');
@@ -5117,12 +5141,15 @@
             tbody.innerHTML = '';
             
             breedingRecords.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(b => {
+                // Safety check - ensure does is an array
+                const doesArray = Array.isArray(b.does) ? b.does : [];
+                
                 const row = tbody.insertRow();
                 row.innerHTML = `
                     <td>${new Date(b.date).toLocaleDateString()}</td>
-                    <td><strong>${b.sire}</strong></td>
-                    <td><span class="badge badge-active">${b.does.length}</span></td>
-                    <td>${b.does.join(', ')}</td>
+                    <td><strong>${b.sire || 'Unknown'}</strong></td>
+                    <td><span class="badge badge-active">${doesArray.length}</span></td>
+                    <td>${doesArray.join(', ') || '-'}</td>
                     <td>${b.notes || '-'}</td>
                     <td>
                         <button class="btn btn-secondary btn-small" onclick="editBreeding('${b.id}')">Edit</button>
@@ -5225,8 +5252,11 @@
                 const breedingTime = new Date(b.date).getTime();
                 const timeDiff = kiddingTime - breedingTime;
                 
+                // Safety check - ensure does is an array
+                const doesArray = Array.isArray(b.does) ? b.does : [];
+                
                 // Breeding must be before kidding and within 180 days
-                return b.does.includes(doeName) && 
+                return doesArray.includes(doeName) && 
                        timeDiff > 0 && 
                        timeDiff <= maxDaysBack;
             });
