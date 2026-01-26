@@ -2844,6 +2844,9 @@
             updateSyncStatus('syncing', 'Syncing...');
             startSyncTimeout(); // Start the failsafe timer
             
+            console.log('📤 Starting sync to Sheets...');
+            console.log('Data counts - Goats:', goats.length, 'Treatments:', treatments.length, 'Kidding:', kiddingRecords.length, 'Feed:', feedRecords.length, 'Breeding:', breedingRecords.length);
+            
             try {
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
@@ -2853,20 +2856,35 @@
                         data: { goats, treatments, kiddingRecords, feedRecords, breedingRecords }
                     })
                 });
-                const result = await response.json();
-                clearSyncTimeout(); // Clear the failsafe timer
+                
+                console.log('📥 Response status:', response.status);
+                const responseText = await response.text();
+                console.log('📥 Response text:', responseText);
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('❌ Failed to parse response as JSON:', parseError);
+                    throw new Error('Invalid JSON response from server');
+                }
+                
+                clearSyncTimeout();
                 isSyncing = false;
+                
                 if (result.status === 'success') {
+                    console.log('✅ Sync successful!');
                     updateSyncStatus('success', 'Synced');
                     updateLastSyncTime();
                 } else {
-                    updateSyncStatus('error', 'Failed');
+                    console.error('❌ Sync failed:', result.message || 'Unknown error');
+                    updateSyncStatus('error', result.message || 'Failed');
                 }
             } catch (e) {
-                clearSyncTimeout(); // Clear the failsafe timer
+                clearSyncTimeout();
                 isSyncing = false;
-                updateSyncStatus('error', 'Error');
-                console.log('Sync error:', e);
+                console.error('❌ Sync error:', e.message || e);
+                updateSyncStatus('error', 'Error: ' + (e.message || 'Network'));
             }
         }
         
@@ -2874,18 +2892,33 @@
             if (isSyncing) return;
             isSyncing = true;
             updateSyncStatus('syncing', 'Loading...');
-            startSyncTimeout(); // Start the failsafe timer
+            startSyncTimeout();
+            
+            console.log('📥 Loading from Sheets...');
             
             try {
                 const response = await fetch(APPS_SCRIPT_URL + '?action=getAllData', {
                     method: 'GET',
                     redirect: 'follow'
                 });
-                const result = await response.json();
-                clearSyncTimeout(); // Clear the failsafe timer
+                
+                console.log('📥 Response status:', response.status);
+                const responseText = await response.text();
+                console.log('📥 Response text (first 500 chars):', responseText.substring(0, 500));
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('❌ Failed to parse response as JSON:', parseError);
+                    throw new Error('Invalid JSON response from server');
+                }
+                
+                clearSyncTimeout();
                 isSyncing = false;
                 
                 if (result.status === 'success' && result.data) {
+                    console.log('✅ Load successful! Processing data...');
                     // Sanitize data from sheets
                     goats = (result.data.goats || []).map(sanitizeGoat);
                     treatments = (result.data.treatments || []).map(t => ({
@@ -2907,14 +2940,16 @@
                     refreshAllDisplays();
                     updateSyncStatus('success', 'Loaded');
                     updateLastSyncTime();
+                    console.log('✅ Data loaded - Goats:', goats.length, 'Treatments:', treatments.length);
                 } else {
-                    updateSyncStatus('error', 'Failed');
+                    console.error('❌ Load failed:', result.message || 'No data');
+                    updateSyncStatus('error', result.message || 'Failed');
                 }
             } catch (e) {
-                clearSyncTimeout(); // Clear the failsafe timer
+                clearSyncTimeout();
                 isSyncing = false;
-                updateSyncStatus('error', 'Error');
-                console.log('Load error:', e);
+                console.error('❌ Load error:', e.message || e);
+                updateSyncStatus('error', 'Error: ' + (e.message || 'Network'));
             }
         }
         
