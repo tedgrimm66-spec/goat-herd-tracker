@@ -1429,7 +1429,7 @@
         
         <!-- Google Sheets Sync Bar - Compact top right -->
         <div class="sync-bar">
-            <span class="sync-version">v1.8</span>
+            <span class="sync-version">v1.9</span>
             <div id="syncStatus" class="sync-status success">🟢 Synced</div>
             <span id="lastSyncTime" class="sync-time"></span>
             <button onclick="loadAllFromSheets()" title="Load from Sheets">⬇️</button>
@@ -2800,7 +2800,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.8-BREEDING-FIX';
+        const APP_VERSION = 'v1.9-STABLE';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
         let syncTimeout = null;
@@ -5305,36 +5305,19 @@
             const currentVersion = APP_VERSION;
             
             // If there's NO stored version, this is first-time use or fresh start
-            // Clear any old data but DON'T disable sync
+            // Just update the version, don't clear anything
             if (!storedVersion) {
-                console.log('✅ First time use - no version stored. Starting fresh...');
-                const keysToRemove = ['goats', 'treatments', 'kiddingRecords', 'feedRecords', 'breedingRecords'];
-                keysToRemove.forEach(key => localStorage.removeItem(key));
-                return false; // Don't disable sync - this is normal first use
+                console.log('✅ First time use - setting version...');
+                localStorage.setItem('dataVersion', APP_VERSION);
+                return false;
             }
             
-            // If there IS a stored version but it doesn't match, this is OLD data
-            // Clear it and disable sync to force download
+            // If there IS a stored version but it doesn't match, this is a version update
+            // Don't clear data - just update version and let normal sync handle it
             if (storedVersion !== currentVersion) {
-                console.log('⚠️ Version mismatch! Old data detected.');
-                console.log('Stored version:', storedVersion);
-                console.log('Current version:', currentVersion);
-                
-                // Clear ALL localStorage
-                const keysToRemove = ['goats', 'treatments', 'kiddingRecords', 'feedRecords', 'breedingRecords'];
-                keysToRemove.forEach(key => localStorage.removeItem(key));
-                
-                // Show warning banner for version mismatch
-                const banner = document.createElement('div');
-                banner.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 10000; background: #ff9800; color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 600px; text-align: center;';
-                banner.innerHTML = `
-                    <h3 style="margin: 0 0 10px 0;">🔄 Data Cleared - Version Updated</h3>
-                    <p style="margin: 0;">Old data detected and removed to prevent corruption.<br><strong>Click the ⬇️ Download button to load your data from Google Sheets.</strong></p>
-                    <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 10px 20px; background: white; color: #ff9800; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">OK, Got It!</button>
-                `;
-                document.body.appendChild(banner);
-                
-                return true; // Data was cleared due to version mismatch - disable sync
+                console.log('🔄 Version updated from', storedVersion, 'to', currentVersion);
+                localStorage.setItem('dataVersion', APP_VERSION);
+                return false; // Don't disable anything, just continue normally
             }
             
             // Version matches - all good!
@@ -5343,15 +5326,8 @@
         
         // Run version check on page load
         window.addEventListener('DOMContentLoaded', function() {
-            const wasCleared = checkAndClearOldData();
-            
-            if (wasCleared) {
-                // Data was cleared, prompt user to download
-                updateSyncStatus('offline', '⚠️ Please Download Data');
-            } else {
-                // Data version is current, proceed normally
-                refreshAllDisplays();
-            }
+            checkAndClearOldData();
+            refreshAllDisplays();
         });
         
         // Update saveAllData to save version
@@ -5367,7 +5343,6 @@
             await originalLoadAllFromSheets();
             // After successful load, save the version
             localStorage.setItem('dataVersion', APP_VERSION);
-            updateSyncStatus('success', 'Synced');
         };
     </script>
 </body>
