@@ -2712,7 +2712,8 @@
                 kidsPoorly: Boolean(g.kidsPoorly),
                 digestive: Boolean(g.digestive),
                 weights: Array.isArray(g.weights) ? g.weights : [],
-                photo: g.photo || null
+                photo: g.photo || null,
+                photoFileId: g.photoFileId || null  // Google Drive file ID
             };
         }
         
@@ -2800,7 +2801,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdKVP4UFsu_P1tdk2u5zAKIye_ZNL98XTpWewAhCMFyDTMRtYQWjqftZosZfk1Q3og/exec';
-        const APP_VERSION = 'v1.9-STABLE';
+        const APP_VERSION = 'v2.0-PHOTOS';
         const syncEnabled = true;  // ALWAYS ON - Cannot be disabled
         let isSyncing = false;
         let syncTimeout = null;
@@ -3136,12 +3137,30 @@
                 return false;
             }
             
+            // Show loading indicator
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '⏳ Saving...';
+            submitBtn.disabled = true;
+            
             try {
-                const photoData = await getPhotoData('addPhotoInput');
+                // Get photo data and upload to Drive if present
+                let photoUrl = null;
+                let photoFileId = null;
+                const photoBase64 = await getPhotoData('addPhotoInput');
+                
+                if (photoBase64) {
+                    const photoResult = await uploadPhotoToDrive(photoBase64, tag);
+                    if (photoResult) {
+                        photoUrl = photoResult.url;
+                        photoFileId = photoResult.fileId;
+                    }
+                }
                 
                 const goat = {
                     id: String(Date.now()),
-                    photo: photoData,
+                    photo: photoUrl,            // Now stores Drive URL instead of base64
+                    photoFileId: photoFileId,   // Store file ID for reference
                     name: document.getElementById('name').value.trim() || tag,
                     tag: tag,
                     status: 'Active',
@@ -3173,10 +3192,24 @@
                 closeModal('addGoatModal');
                 e.target.reset();
                 
+                // Clear the photo preview data
+                const preview = document.getElementById('addPhotoPreview');
+                if (preview) {
+                    preview.dataset.base64 = '';
+                }
+                
+                // Reset button
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                
                 console.log('Goat added successfully:', goat);
             } catch (error) {
                 console.error('Error adding goat:', error);
                 alert('Error adding goat: ' + error.message);
+                
+                // Reset button on error
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             }
             
             return false;
@@ -3362,29 +3395,80 @@
         }
         
         // Photo handling functions
+        // ═══════════════════════════════════════════════════════════════
+        // GOOGLE DRIVE PHOTO HANDLING
+        // ═══════════════════════════════════════════════════════════════
+        
+        // Upload photo to Google Drive and return the URL
+        async function uploadPhotoToDrive(base64Data, goatTag) {
+            try {
+                const fileName = `goat_${goatTag}_${Date.now()}.jpg`;
+                
+                console.log('📷 Uploading photo to Google Drive...');
+                
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    body: JSON.stringify({
+                        action: 'uploadPhoto',
+                        photoData: base64Data,
+                        fileName: fileName
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    console.log('✅ Photo uploaded to Drive:', result.url);
+                    return {
+                        url: result.url,
+                        fileId: result.fileId
+                    };
+                } else {
+                    console.error('❌ Photo upload failed:', result.message);
+                    alert('Photo upload failed: ' + result.message);
+                    return null;
+                }
+            } catch (error) {
+                console.error('❌ Photo upload error:', error);
+                alert('Photo upload error: ' + error.message);
+                return null;
+            }
+        }
+        
+        // Preview photo before upload (stores base64 temporarily)
         function previewPhoto(input, previewId) {
             const preview = document.getElementById(previewId);
             if (input.files && input.files[0]) {
+                // Check file size (limit to 5MB)
+                if (input.files[0].size > 5 * 1024 * 1024) {
+                    alert('Photo is too large! Please choose a photo under 5MB.');
+                    input.value = '';
+                    return;
+                }
+                
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     preview.src = e.target.result;
                     preview.style.display = 'block';
+                    // Store base64 temporarily for upload
+                    preview.dataset.base64 = e.target.result;
                 };
                 reader.readAsDataURL(input.files[0]);
             }
         }
         
+        // Get photo base64 data from preview element
         function getPhotoData(inputId) {
             const input = document.getElementById(inputId);
-            if (input.files && input.files[0]) {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        resolve(e.target.result);
-                    };
-                    reader.readAsDataURL(input.files[0]);
-                });
+            const previewId = inputId.replace('Input', 'Preview');
+            const preview = document.getElementById(previewId);
+            
+            // If there's a new file selected, return the base64 for upload
+            if (input && input.files && input.files[0] && preview.dataset.base64) {
+                return Promise.resolve(preview.dataset.base64);
             }
+            
             return Promise.resolve(null);
         }
         
@@ -3660,37 +3744,72 @@
             const goat = goats.find(g => String(g.id) === String(id));
             
             if (goat) {
-                // Update photo if a new one was uploaded
-                const photoInput = document.getElementById('editPhotoInput');
-                if (photoInput.files && photoInput.files[0]) {
-                    goat.photo = await getPhotoData('editPhotoInput');
+                // Show loading indicator
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = '⏳ Saving...';
+                submitBtn.disabled = true;
+                
+                try {
+                    // Check if a new photo was selected
+                    const photoInput = document.getElementById('editPhotoInput');
+                    if (photoInput.files && photoInput.files[0]) {
+                        const photoBase64 = await getPhotoData('editPhotoInput');
+                        if (photoBase64) {
+                            // Upload new photo to Drive
+                            const photoResult = await uploadPhotoToDrive(photoBase64, goat.tag);
+                            if (photoResult) {
+                                goat.photo = photoResult.url;
+                                goat.photoFileId = photoResult.fileId;
+                            }
+                        }
+                    }
+                    // If no new photo selected, keep existing photo URL
+                    
+                    goat.name = document.getElementById('editName').value;
+                    goat.tag = document.getElementById('editTag').value;
+                    goat.status = document.getElementById('editStatus').value;
+                    goat.gender = document.getElementById('editGender').value;
+                    goat.birthDate = document.getElementById('editBirthDate').value;
+                    goat.sire = document.getElementById('editSire').value;
+                    goat.dam = document.getElementById('editDam').value;
+                    goat.color = document.getElementById('editColor').value;
+                    goat.weanedDate = document.getElementById('editWeanedDate').value;
+                    goat.kiddingEase = document.getElementById('editKiddingEase').value;
+                    goat.salePrice = document.getElementById('editSalePrice').value;
+                    goat.cullDate = document.getElementById('editCullDate').value;
+                    goat.cullReason = document.getElementById('editCullReason').value;
+                    goat.badFeet = document.getElementById('editBadFeet').checked;
+                    goat.poorUdder = document.getElementById('editPoorUdder').checked;
+                    goat.kidsPoorly = document.getElementById('editKidsPoorly').checked;
+                    goat.digestive = document.getElementById('editDigestive').checked;
+                    goat.notes = document.getElementById('editNotes').value;
+                    
+                    // Clear the photo preview data
+                    const preview = document.getElementById('editPhotoPreview');
+                    if (preview) {
+                        preview.dataset.base64 = '';
+                    }
+                    
+                    saveGoatsAndSync();
+                    displayGoats();
+                    updateStats();
+                    updateReports();
+                    renderFamilyTree();
+                    closeModal('editGoatModal');
+                    
+                    // Reset button
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                    
+                } catch (error) {
+                    console.error('Error updating goat:', error);
+                    alert('Error updating goat: ' + error.message);
+                    
+                    // Reset button on error
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
                 }
-                
-                goat.name = document.getElementById('editName').value;
-                goat.tag = document.getElementById('editTag').value;
-                goat.status = document.getElementById('editStatus').value;
-                goat.gender = document.getElementById('editGender').value;
-                goat.birthDate = document.getElementById('editBirthDate').value;
-                goat.sire = document.getElementById('editSire').value;
-                goat.dam = document.getElementById('editDam').value;
-                goat.color = document.getElementById('editColor').value;
-                goat.weanedDate = document.getElementById('editWeanedDate').value;
-                goat.kiddingEase = document.getElementById('editKiddingEase').value;
-                goat.salePrice = document.getElementById('editSalePrice').value;
-                goat.cullDate = document.getElementById('editCullDate').value;
-                goat.cullReason = document.getElementById('editCullReason').value;
-                goat.badFeet = document.getElementById('editBadFeet').checked;
-                goat.poorUdder = document.getElementById('editPoorUdder').checked;
-                goat.kidsPoorly = document.getElementById('editKidsPoorly').checked;
-                goat.digestive = document.getElementById('editDigestive').checked;
-                goat.notes = document.getElementById('editNotes').value;
-                
-                saveGoatsAndSync();
-                displayGoats();
-                updateStats();
-                updateReports();
-                renderFamilyTree();
-                closeModal('editGoatModal');
             }
         }
         
