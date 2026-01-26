@@ -3062,11 +3062,13 @@
                             treatments = result.data.treatments || [];
                             kiddingRecords = (result.data.kiddingRecords || []).map(sanitizeKidding);
                             feedRecords = (result.data.feedRecords || []).map(sanitizeFeed);
+                            breedingRecords = (result.data.breedingRecords || []).map(sanitizeBreeding);
                             // Don't call saveAllData here to avoid re-syncing on load
                             localStorage.setItem('goats', JSON.stringify(goats));
                             localStorage.setItem('treatments', JSON.stringify(treatments));
                             localStorage.setItem('kiddingRecords', JSON.stringify(kiddingRecords));
                             localStorage.setItem('feedRecords', JSON.stringify(feedRecords));
+                            localStorage.setItem('breedingRecords', JSON.stringify(breedingRecords));
                             updateSyncStatus('success', 'Loaded');
                             updateLastSyncTime();
                         } else {
@@ -3086,6 +3088,7 @@
             displayTreatments();
             displayFeedRecords();
             displayKiddingRecords();
+            displayBreedingRecords();
             renderFamilyTree();
             updateStats();
             updateReports();
