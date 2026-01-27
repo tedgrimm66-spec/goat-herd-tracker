@@ -1962,17 +1962,6 @@
                         <label>Weaned Date</label>
                         <input type="date" id="weanedDate">
                     </div>
-                    <div class="form-group">
-                        <label>Kidding Ease (1-5)</label>
-                        <select id="kiddingEase">
-                            <option value="">N/A</option>
-                            <option value="1">1 - Very Easy</option>
-                            <option value="2">2 - Easy</option>
-                            <option value="3">3 - Moderate</option>
-                            <option value="4">4 - Difficult</option>
-                            <option value="5">5 - Very Difficult</option>
-                        </select>
-                    </div>
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 20px;">
@@ -2072,16 +2061,10 @@
                         <label>Weaned Date</label>
                         <input type="date" id="editWeanedDate">
                     </div>
-                    <div class="form-group">
-                        <label>Kidding Ease</label>
-                        <select id="editKiddingEase">
-                            <option value="">N/A</option>
-                            <option value="1">1 - Very Easy</option>
-                            <option value="2">2 - Easy</option>
-                            <option value="3">3 - Moderate</option>
-                            <option value="4">4 - Difficult</option>
-                            <option value="5">5 - Very Difficult</option>
-                        </select>
+                    <div class="form-group" id="editKiddingEaseGroup" style="display: none;">
+                        <label>Avg Kidding Ease</label>
+                        <input type="text" id="editKiddingEaseDisplay" readonly style="background: #f5f5f5; color: #666;">
+                        <small style="color: #888; display: block; margin-top: 5px;">Calculated from kidding records - edit in Kidding tab</small>
                     </div>
                     <div class="form-group">
                         <label>Sale Price</label>
@@ -3170,7 +3153,7 @@
                     dam: document.getElementById('dam').value.trim(),
                     color: document.getElementById('color').value.trim(),
                     weanedDate: document.getElementById('weanedDate').value,
-                    kiddingEase: document.getElementById('kiddingEase').value,
+                    kiddingEase: '',  // Now calculated from kidding records, not stored here
                     badFeet: document.getElementById('badFeet').checked,
                     poorUdder: document.getElementById('poorUdder').checked,
                     kidsPoorly: document.getElementById('kidsPoorly').checked,
@@ -3399,6 +3382,20 @@
         // GOOGLE DRIVE PHOTO HANDLING
         // ═══════════════════════════════════════════════════════════════
         
+        // Calculate average kidding ease for a doe from kidding records
+        function getAverageKiddingEase(doeName) {
+            const doeKiddings = kiddingRecords.filter(k => k.doe === doeName);
+            if (doeKiddings.length === 0) return null;
+            
+            const totalEase = doeKiddings.reduce((sum, k) => sum + (k.ease || 0), 0);
+            return (totalEase / doeKiddings.length).toFixed(1);
+        }
+        
+        // Get kidding count for a doe
+        function getKiddingCount(doeName) {
+            return kiddingRecords.filter(k => k.doe === doeName).length;
+        }
+        
         // Compress/resize image to reduce file size
         function compressImage(file, maxWidth = 1600, quality = 0.8) {
             return new Promise((resolve, reject) => {
@@ -3609,7 +3606,15 @@
             html += `<div class="detail-item"><div class="detail-label">Age</div><div class="detail-value">${age}</div></div>`;
             html += `<div class="detail-item"><div class="detail-label">Color</div><div class="detail-value">${goat.color || 'N/A'}</div></div>`;
             if (goat.weanedDate) html += `<div class="detail-item"><div class="detail-label">Weaned Date</div><div class="detail-value">${new Date(goat.weanedDate).toLocaleDateString()}</div></div>`;
-            if (goat.kiddingEase) html += `<div class="detail-item"><div class="detail-label">Kidding Ease</div><div class="detail-value">${goat.kiddingEase}</div></div>`;
+            
+            // Show average kidding ease for does (calculated from kidding records)
+            if (goat.gender === 'Doe') {
+                const avgEase = getAverageKiddingEase(goat.name) || getAverageKiddingEase(goat.tag);
+                const kiddingCount = getKiddingCount(goat.name) || getKiddingCount(goat.tag);
+                if (avgEase) {
+                    html += `<div class="detail-item"><div class="detail-label">Avg Kidding Ease</div><div class="detail-value">${avgEase}/5 (${kiddingCount} kidding${kiddingCount > 1 ? 's' : ''})</div></div>`;
+                }
+            }
             html += '</div></div>';
             
             html += '<div class="detail-section">';
@@ -3777,7 +3782,23 @@
             document.getElementById('editDam').value = goat.dam || '';
             document.getElementById('editColor').value = goat.color || '';
             document.getElementById('editWeanedDate').value = goat.weanedDate || '';
-            document.getElementById('editKiddingEase').value = goat.kiddingEase || '';
+            
+            // Show average kidding ease for does (calculated from kidding records)
+            const easeGroup = document.getElementById('editKiddingEaseGroup');
+            if (goat.gender === 'Doe') {
+                const avgEase = getAverageKiddingEase(goat.name) || getAverageKiddingEase(goat.tag);
+                const kiddingCount = getKiddingCount(goat.name) || getKiddingCount(goat.tag);
+                if (avgEase) {
+                    document.getElementById('editKiddingEaseDisplay').value = `${avgEase}/5 (${kiddingCount} kidding${kiddingCount > 1 ? 's' : ''})`;
+                    easeGroup.style.display = 'block';
+                } else {
+                    document.getElementById('editKiddingEaseDisplay').value = 'No kidding records';
+                    easeGroup.style.display = 'block';
+                }
+            } else {
+                easeGroup.style.display = 'none';
+            }
+            
             document.getElementById('editSalePrice').value = goat.salePrice || '';
             document.getElementById('editCullDate').value = goat.cullDate || '';
             document.getElementById('editCullReason').value = goat.cullReason || '';
@@ -3834,7 +3855,7 @@
                     goat.dam = document.getElementById('editDam').value;
                     goat.color = document.getElementById('editColor').value;
                     goat.weanedDate = document.getElementById('editWeanedDate').value;
-                    goat.kiddingEase = document.getElementById('editKiddingEase').value;
+                    // kiddingEase is now calculated from kidding records, not stored on goat
                     goat.salePrice = document.getElementById('editSalePrice').value;
                     goat.cullDate = document.getElementById('editCullDate').value;
                     goat.cullReason = document.getElementById('editCullReason').value;
